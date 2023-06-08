@@ -8,7 +8,7 @@ from src.utils.definitions import NIFTYREG_PATH
 
 
 SIGMA = 0  # sigma for smoothing the segmentation prior
-OMP = 1
+OMP = 64
 
 
 def probabilistic_segmentation_prior(image_nii, mask_nii,
@@ -193,11 +193,11 @@ def _propagate_labels(atlas_seg_nii, image_nii, aff_path, cpp_path, save_folder,
     atlas_seg_path = os.path.join(tmp_folder, 'atlas_seg_onehot.nii')
     nib.save(atlas_seg_onehot_nii, atlas_seg_path)
 
-    if aff_path is not None and cpp_path is not None:
+    if False: # aff_path is not None and cpp_path is not None:
         # combine affine and non-linear transform
         comb_tfm_path = os.path.join(os.path.dirname(cpp_path), 'combined_transform.nii.gz')
-        cmd = '%s/reg_transform -comp %s %s %s -ref %s' % \
-              (NIFTYREG_PATH, aff_path, cpp_path, comb_tfm_path, image_path)
+        cmd = '%s/reg_transform -comp %s %s %s -ref %s -voff -omp %s' % \
+              (NIFTYREG_PATH, aff_path, cpp_path, comb_tfm_path, image_path, OMP)
         print("---->", cmd)
         os.system(cmd)
         # Warp the atlas seg given a pre-computed transformation (vel) and save it
