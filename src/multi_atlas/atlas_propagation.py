@@ -194,7 +194,7 @@ def _propagate_labels(atlas_seg_nii, image_nii, aff_path, cpp_path, save_folder,
     atlas_seg_onehot_path = os.path.join(tmp_folder, 'atlas_seg_onehot.nii')
     nib.save(atlas_seg_onehot_nii, atlas_seg_onehot_path)
 
-    if aff_path is not None and cpp_path is not None:
+    if False: #aff_path is not None and cpp_path is not None:
         # combine affine and non-linear transform
         comb_tfm_path = os.path.join(os.path.dirname(cpp_path), 'combined_transform.nii.gz')
         cmd = '%s/reg_transform -comp %s %s %s -ref %s -omp %s' % \
