@@ -33,6 +33,6 @@ pred_proba_atlas = multi_atlas_segmentation(
         save_folder=atlas_pred_save_folder,
         only_affine=False,
         merging_method=MERGING_MULTI_ATLAS,
-        reuse_existing_pred=True,
+        reuse_existing_pred=False,
         force_recompute_heat_kernels=False,
     )

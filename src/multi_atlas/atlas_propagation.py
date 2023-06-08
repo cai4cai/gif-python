@@ -8,11 +8,12 @@ from src.utils.definitions import NIFTYREG_PATH
 
 
 SIGMA = 0  # sigma for smoothing the segmentation prior
+OMP = 8
 
 
 def probabilistic_segmentation_prior(image_nii, mask_nii,
                                      template_nii, template_seg_nii, template_mask_nii,
-                                     warped_altas_seg_onehot_path, warped_atlas_img_path,
+                                     atlas_seg_onehot_path, warped_altas_seg_onehot_path, warped_atlas_img_path,
                                      mask_dilation=3, save_folder_path=None, use_affine=True,
                                      affine_only=False, grid_spacing=4, be=0.001, le=0.01, lp=3):
     """
@@ -62,6 +63,7 @@ def probabilistic_segmentation_prior(image_nii, mask_nii,
         aff_path=affine_params,  # will be None if use_affine == False
         cpp_path=cpp_params_path,
         save_folder=save_folder_path,
+        atlas_seg_onehot_path=atlas_seg_onehot_path,
         warped_altas_seg_onehot_path=warped_altas_seg_onehot_path,
     )
 
@@ -146,14 +148,14 @@ def _register_atlas_to_img(image_nii, mask_nii,
     if use_affine or affine_only:
         affine_path = os.path.join(save_folder, 'outputAffine.txt')
         affine_res_path = os.path.join(save_folder, 'affine_warped_atlas_img.nii.gz')
-        affine_reg_cmd = '%s/reg_aladin -ref %s -rmask %s -flo %s -fmask %s -res %s -aff %s -comm -voff' % \
-            (NIFTYREG_PATH, img_path, mask_path, atlas_img_seg_path, atlas_mask_path, affine_res_path, affine_path)
+        affine_reg_cmd = '%s/reg_aladin -ref %s -rmask %s -flo %s -fmask %s -res %s -aff %s -comm -voff -omp %s' % \
+            (NIFTYREG_PATH, img_path, mask_path, atlas_img_seg_path, atlas_mask_path, affine_res_path, affine_path, OMP)
         os.system(affine_reg_cmd)
 
         # Warp the atlas mask
         affine_res_mask_path = os.path.join(save_folder, 'affine_warped_atlas_mask.nii.gz')
-        affine_warp_mask_cmd = '%s/reg_resample -ref %s -flo %s -trans %s -res %s -inter 0 -voff' % \
-            (NIFTYREG_PATH, img_path, atlas_mask_path, affine_path, affine_res_mask_path)
+        affine_warp_mask_cmd = '%s/reg_resample -ref %s -flo %s -trans %s -res %s -inter 0 -voff -omp %s' % \
+            (NIFTYREG_PATH, img_path, atlas_mask_path, affine_path, affine_res_mask_path, OMP)
         os.system(affine_warp_mask_cmd)
 
         if affine_only:
@@ -170,15 +172,15 @@ def _register_atlas_to_img(image_nii, mask_nii,
     cpp_path = os.path.join(save_folder, 'cpp.nii.gz')
     reg_options = '-be %f -le %f -sx %s -ln 3 -lp %d %s -voff' % \
         (be, le, grid_spacing, lp, reg_loss_options)
-    reg_cmd = '%s/reg_f3d -ref %s -rmask %s -flo %s -fmask %s -res %s -cpp %s %s' % \
-        (NIFTYREG_PATH, img_path, mask_path, affine_res_path, affine_res_mask_path, res_path, cpp_path, reg_options)
+    reg_cmd = '%s/reg_f3d -ref %s -rmask %s -flo %s -fmask %s -res %s -cpp %s %s -omp %s' % \
+        (NIFTYREG_PATH, img_path, mask_path, affine_res_path, affine_res_mask_path, res_path, cpp_path, reg_options, OMP)
     # print('Non linear registration command line:')
     # print(reg_cmd)
     os.system(reg_cmd)
     return affine_path, cpp_path
 
 
-def _propagate_labels(atlas_seg_nii, image_nii, aff_path, cpp_path, save_folder, warped_altas_seg_onehot_path):
+def _propagate_labels(atlas_seg_nii, image_nii, aff_path, cpp_path, save_folder, atlas_seg_onehot_path, warped_altas_seg_onehot_path):
     # Infere the tmp folder from input
     if cpp_path is not None:
         tmp_folder = os.path.split(cpp_path)[0]
@@ -189,37 +191,37 @@ def _propagate_labels(atlas_seg_nii, image_nii, aff_path, cpp_path, save_folder,
 
     # Convert the atlas segmentation into one-hot representation
     atlas_seg_onehot_nii = _convert_to_one_hot_and_smooth_seg_prior(atlas_seg_nii)
-    atlas_seg_path = os.path.join(tmp_folder, 'atlas_seg_onehot.nii')
-    nib.save(atlas_seg_onehot_nii, atlas_seg_path)
+    atlas_seg_onehot_path = os.path.join(tmp_folder, 'atlas_seg_onehot.nii')
+    nib.save(atlas_seg_onehot_nii, atlas_seg_onehot_path)
 
     if aff_path is not None and cpp_path is not None:
         # combine affine and non-linear transform
         comb_tfm_path = os.path.join(os.path.dirname(cpp_path), 'combined_transform.nii.gz')
-        cmd = '%s/reg_transform -comp %s %s %s -ref %s' % \
-              (NIFTYREG_PATH, aff_path, cpp_path, comb_tfm_path, image_path)
+        cmd = '%s/reg_transform -comp %s %s %s -ref %s -omp %s' % \
+              (NIFTYREG_PATH, aff_path, cpp_path, comb_tfm_path, image_path, OMP)
         print("---->", cmd)
         os.system(cmd)
         # Warp the atlas seg given a pre-computed transformation (vel) and save it
         warped_seg = warped_altas_seg_onehot_path
-        cmd = '%s/reg_resample -ref %s -flo %s -trans %s -res %s -inter 1 -voff' % \
-              (NIFTYREG_PATH, image_path, atlas_seg_path, comb_tfm_path, warped_seg)
+        cmd = '%s/reg_resample -ref %s -flo %s -trans %s -res %s -inter 1 -voff -omp %s' % \
+              (NIFTYREG_PATH, image_path, atlas_seg_onehot_path, comb_tfm_path, warped_seg, OMP)
         os.system(cmd)
 
     else:
     # Affine deformation of the atlas segmentation
         if aff_path is not None:
             aff_warped_seg = warped_altas_seg_onehot_path.replace(".nii", "_after_aff_only.nii")
-            cmd = '%s/reg_resample -ref %s -flo %s -trans %s -res %s -inter 1 -voff' % \
-                (NIFTYREG_PATH, image_path, atlas_seg_path, aff_path, aff_warped_seg)
+            cmd = '%s/reg_resample -ref %s -flo %s -trans %s -res %s -inter 1 -voff -omp %s' % \
+                (NIFTYREG_PATH, image_path, atlas_seg_onehot_path, aff_path, aff_warped_seg, OMP)
             os.system(cmd)
         else:
-            aff_warped_seg = atlas_seg_path
+            aff_warped_seg = atlas_seg_onehot_path
 
         if cpp_path is not None:
             # Warp the atlas seg given a pre-computed transformation (vel) and save it
             warped_seg = warped_altas_seg_onehot_path
-            cmd = '%s/reg_resample -ref %s -flo %s -trans %s -res %s -inter 1 -voff' % \
-                (NIFTYREG_PATH, image_path, aff_warped_seg, cpp_path, warped_seg)
+            cmd = '%s/reg_resample -ref %s -flo %s -trans %s -res %s -inter 1 -voff -omp %s' % \
+                (NIFTYREG_PATH, image_path, aff_warped_seg, cpp_path, warped_seg, OMP)
             os.system(cmd)
         else:
             warped_seg = aff_warped_seg
