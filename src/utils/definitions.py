@@ -11,7 +11,7 @@ REPO_DATA_PATH = os.path.join(REPO_PATH, 'data')
 
 # GENERAL EVALUATION OPTIONS
 IMG_RES = 0.8  # in mm; isotropic
-NUM_CLASS = 9  # number of classes predicted by the model
+NUM_CLASS = 4  # number of classes predicted by the model
 METHOD_NAMES = [
     'cnn', 'atlas', 'add_fusion', 'mult_fusion',
     'cnn_trustworthy', 'cnn_trustworthy_atlas_only', 'cnn_trustworthy_intensity_only',
@@ -58,8 +58,8 @@ MAX_GA = 38
 
 
 # PARENT FOLDERS
-HOME_FOLDER = '/'
-WORKSPACE_FOLDER = os.path.join(HOME_FOLDER, 'workspace')
+HOME_FOLDER = '/home/aku20'
+WORKSPACE_FOLDER = os.path.join(HOME_FOLDER, 'projects')
 DATA_FOLDER = os.path.join(HOME_FOLDER, 'data')
 BASE_FOLDER = os.path.join(DATA_FOLDER, 'Fetal_SRR_and_Seg')
 DATA_FOLDER_MICHAEL_GROUP = os.path.join(BASE_FOLDER, 'SRR_and_Seg_Michael_cases_group')
@@ -72,10 +72,7 @@ SWINUNETR_TEST_PRED = [
 ]
 
 # NIFTYREG_PATH = os.path.join(WORKSPACE_FOLDER, 'third-party', 'niftyreg', 'build', 'reg-apps')
-NIFTYREG_PATH = os.path.join(
-    WORKSPACE_FOLDER, 'trustworthy-ai-fetal-brain-segmentation',
-    'docker', 'third-party', 'niftyreg', 'build', 'reg-apps',
-)
+NIFTYREG_PATH = os.path.join("/home/aku20/tools/niftyreg-master/install/bin")
 
 
 # ATLAS FOLDERS

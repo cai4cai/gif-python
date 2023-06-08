@@ -15,8 +15,8 @@ def compute_disp_from_cpp(cpp_path, ref_path, save_disp_path):
     # Create the identity transformation to get the displacement
     cpp_id = os.path.join(save_folder, 'output_cpp_identity.nii.gz')
     res_id = os.path.join(save_folder, 'srr_identity.nii.gz')
-    cmd = 'reg_f3d -ref %s -flo %s -res %s -cpp %s -be 1. -le 0. -ln 3 -voff' % \
-          (ref_path, ref_path, res_id, cpp_id)
+    cmd = '%s/reg_f3d -ref %s -flo %s -res %s -cpp %s -be 1. -le 0. -ln 3 -voff' % \
+          (NIFTYREG_PATH, ref_path, ref_path, res_id, cpp_id)
     os.system(cmd)
     save_id_path = os.path.join(save_folder, 'tmp_id_def.nii.gz')
     cmd = '%s/reg_transform -ref %s -def %s %s > /dev/null' % (NIFTYREG_PATH, ref_path, cpp_id, save_id_path)
