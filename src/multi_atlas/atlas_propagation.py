@@ -12,6 +12,7 @@ SIGMA = 0  # sigma for smoothing the segmentation prior
 
 def probabilistic_segmentation_prior(image_nii, mask_nii,
                                      template_nii, template_seg_nii, template_mask_nii,
+                                     warped_altas_seg_onehot_path, warped_atlas_img_path,
                                      mask_dilation=3, save_folder_path=None, use_affine=True,
                                      affine_only=False, grid_spacing=4, be=0.001, le=0.01, lp=3):
     """
@@ -44,6 +45,7 @@ def probabilistic_segmentation_prior(image_nii, mask_nii,
         mask_nii=mask_nii,
         atlas_nii=template_nii,
         atlas_mask_nii=template_mask_nii,
+        warped_atlas_img_path=warped_atlas_img_path,
         grid_spacing=grid_spacing,
         be=be,
         le=le,
@@ -60,6 +62,7 @@ def probabilistic_segmentation_prior(image_nii, mask_nii,
         aff_path=affine_params,  # will be None if use_affine == False
         cpp_path=cpp_params_path,
         save_folder=save_folder_path,
+        warped_altas_seg_onehot_path=warped_altas_seg_onehot_path,
     )
 
     # Delete the tmp folder
@@ -108,6 +111,7 @@ def _convert_to_one_hot_and_smooth_seg_prior(segmentation_nii, smooth_sigma=SIGM
 
 def _register_atlas_to_img(image_nii, mask_nii,
                            atlas_nii, atlas_mask_nii,
+                           warped_atlas_img_path,
                            grid_spacing, be, le, lp,
                            save_folder, use_affine, affine_only):
     """
@@ -162,7 +166,7 @@ def _register_atlas_to_img(image_nii, mask_nii,
 
     # Registration
     reg_loss_options = '-lncc 0 6'
-    res_path = os.path.join(save_folder, 'warped_atlas_img.nii.gz')
+    res_path = warped_atlas_img_path
     cpp_path = os.path.join(save_folder, 'cpp.nii.gz')
     reg_options = '-be %f -le %f -sx %s -ln 3 -lp %d %s -voff' % \
         (be, le, grid_spacing, lp, reg_loss_options)
@@ -174,7 +178,7 @@ def _register_atlas_to_img(image_nii, mask_nii,
     return affine_path, cpp_path
 
 
-def _propagate_labels(atlas_seg_nii, image_nii, aff_path, cpp_path, save_folder):
+def _propagate_labels(atlas_seg_nii, image_nii, aff_path, cpp_path, save_folder, warped_altas_seg_onehot_path):
     # Infere the tmp folder from input
     if cpp_path is not None:
         tmp_folder = os.path.split(cpp_path)[0]
@@ -185,26 +189,40 @@ def _propagate_labels(atlas_seg_nii, image_nii, aff_path, cpp_path, save_folder)
 
     # Convert the atlas segmentation into one-hot representation
     atlas_seg_onehot_nii = _convert_to_one_hot_and_smooth_seg_prior(atlas_seg_nii)
-    atlas_seg_path = os.path.join(tmp_folder, 'atlas_seg_onehot.nii.gz')
+    atlas_seg_path = os.path.join(tmp_folder, 'atlas_seg_onehot.nii')
     nib.save(atlas_seg_onehot_nii, atlas_seg_path)
 
-    # Affine deformation of the atlas segmentation
-    if aff_path is not None:
-        aff_warped_seg = os.path.join(save_folder, 'warped_atlas_seg_onehot_after_aff_only.nii.gz')
-        cmd = '%s/reg_resample -ref %s -flo %s -trans %s -res %s -inter 1 -voff' % \
-            (NIFTYREG_PATH, image_path, atlas_seg_path, aff_path, aff_warped_seg)
+    if aff_path is not None and cpp_path is not None:
+        # combine affine and non-linear transform
+        comb_tfm_path = os.path.join(os.path.dirname(cpp_path), 'combined_transform.nii.gz')
+        cmd = '%s/reg_transform -comp %s %s %s -ref %s' % \
+              (NIFTYREG_PATH, aff_path, cpp_path, comb_tfm_path, image_path)
+        print("---->", cmd)
         os.system(cmd)
-    else:
-        aff_warped_seg = atlas_seg_path
-
-    if cpp_path is not None:
         # Warp the atlas seg given a pre-computed transformation (vel) and save it
-        warped_seg = os.path.join(save_folder, 'warped_atlas_seg_onehot.nii.gz')
+        warped_seg = warped_altas_seg_onehot_path
         cmd = '%s/reg_resample -ref %s -flo %s -trans %s -res %s -inter 1 -voff' % \
-            (NIFTYREG_PATH, image_path, aff_warped_seg, cpp_path, warped_seg)
+              (NIFTYREG_PATH, image_path, atlas_seg_path, comb_tfm_path, warped_seg)
         os.system(cmd)
+
     else:
-        warped_seg = aff_warped_seg
+    # Affine deformation of the atlas segmentation
+        if aff_path is not None:
+            aff_warped_seg = warped_altas_seg_onehot_path.replace(".nii", "_after_aff_only.nii")
+            cmd = '%s/reg_resample -ref %s -flo %s -trans %s -res %s -inter 1 -voff' % \
+                (NIFTYREG_PATH, image_path, atlas_seg_path, aff_path, aff_warped_seg)
+            os.system(cmd)
+        else:
+            aff_warped_seg = atlas_seg_path
+
+        if cpp_path is not None:
+            # Warp the atlas seg given a pre-computed transformation (vel) and save it
+            warped_seg = warped_altas_seg_onehot_path
+            cmd = '%s/reg_resample -ref %s -flo %s -trans %s -res %s -inter 1 -voff' % \
+                (NIFTYREG_PATH, image_path, aff_warped_seg, cpp_path, warped_seg)
+            os.system(cmd)
+        else:
+            warped_seg = aff_warped_seg
 
     # Load and return the warped atlas proba numpy array
     warped_atlas_proba_nii = nib.load(warped_seg)
