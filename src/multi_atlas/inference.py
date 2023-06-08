@@ -60,7 +60,9 @@ def multi_atlas_segmentation(img_nii,
         save_folder_atlas = os.path.join(save_folder, atlas_name)
 
         # List of files that should exist at the end of the segmentation
-        warped_altas_seg_onehot_path = os.path.join(save_folder_atlas, 'warped_atlas_seg_onehot.nii')
+        
+        atlas_seg_onehot_path = os.path.join(save_folder_atlas, 'atlas_seg_onehot.nii.gz')
+        warped_altas_seg_onehot_path = os.path.join(save_folder_atlas, 'warped_atlas_seg_onehot.nii.gz')
         predicted_segmentation_path = os.path.join(save_folder_atlas, 'predicted_seg.nii.gz')
         warped_atlas_img_path = os.path.join(save_folder_atlas, 'warped_atlas_img.nii.gz')
         disp_field_path = os.path.join(save_folder_atlas, 'disp.nii.gz')
@@ -104,6 +106,7 @@ def multi_atlas_segmentation(img_nii,
                 template_nii=template_nii,
                 template_seg_nii=template_seg_nii,
                 template_mask_nii=template_mask_nii,
+                atlas_seg_onehot_path=atlas_seg_onehot_path,
                 warped_altas_seg_onehot_path=warped_altas_seg_onehot_path,
                 warped_atlas_img_path=warped_atlas_img_path,
                 grid_spacing=grid_spacing,
