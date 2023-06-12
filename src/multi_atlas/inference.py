@@ -27,23 +27,30 @@ def _weights_from_log_heat_kernels(log_heat_kernels):
 
 
 def calculate_warped_prob_segmentation(param_list):
-    folder, save_folder, reuse_existing_pred, force_recompute_heat_kernels, img_nii, mask_nii, grid_spacing, be, le, lp, only_affine = param_list
+    folder, save_folder, reuse_existing_pred, force_recompute_heat_kernels, img_nii, mask_nii, num_class, grid_spacing, be, le, lp, only_affine = param_list
     atlas_name = os.path.split(folder)[1]
     save_folder_atlas = os.path.join(save_folder, atlas_name)
 
     # List of files that should exist at the end of the segmentation
+    expected_cpp_path = os.path.join(save_folder_atlas, 'cpp.nii.gz')
+    expected_aff_path = os.path.join(save_folder_atlas, 'outputAffine.txt')
     atlas_seg_onehot_path = os.path.join(save_folder_atlas, 'atlas_seg_onehot.nii.gz')
     warped_altas_seg_onehot_path = os.path.join(save_folder_atlas, 'warped_atlas_seg_onehot.nii.gz')
-    predicted_segmentation_path = os.path.join(save_folder_atlas, 'predicted_seg.nii.gz')
     warped_atlas_img_path = os.path.join(save_folder_atlas, 'warped_atlas_img.nii.gz')
     disp_field_path = os.path.join(save_folder_atlas, 'disp.nii.gz')
     heat_kernel_path = os.path.join(save_folder_atlas, 'log_heat_kernel.nii.gz')
     to_not_remove = [  # paths to filter during the cleaning at the end
+        expected_cpp_path,
+        expected_aff_path,
         warped_altas_seg_onehot_path,
-        predicted_segmentation_path,
+        warped_atlas_img_path,
         # expected_warped_atlas_path,
         # expected_disp_path,
         heat_kernel_path
+    ]
+    to_not_remove_which_starts_with = [
+        "atlas_seg_",
+        "warped_atlas_seg_",
     ]
 
     # Try to see what results we can reuse to save time
@@ -71,7 +78,7 @@ def calculate_warped_prob_segmentation(param_list):
         template_nii = nib.load(os.path.join(folder, 'srr.nii.gz'))
         template_mask_nii = nib.load(os.path.join(folder, 'mask.nii.gz'))
         template_seg_nii = nib.load(os.path.join(folder, 'parcellation.nii.gz'))
-        proba_atlas_prior = probabilistic_segmentation_prior(
+        prob_warped_atlas_seg_l_paths, warped_atlas_seg_mask = probabilistic_segmentation_prior(
             image_nii=img_nii,
             mask_nii=mask_nii,
             template_nii=template_nii,
@@ -80,6 +87,7 @@ def calculate_warped_prob_segmentation(param_list):
             atlas_seg_onehot_path=atlas_seg_onehot_path,
             warped_altas_seg_onehot_path=warped_altas_seg_onehot_path,
             warped_atlas_img_path=warped_atlas_img_path,
+            num_class=num_class,
             grid_spacing=grid_spacing,
             be=be,
             le=le,
@@ -87,11 +95,8 @@ def calculate_warped_prob_segmentation(param_list):
             save_folder_path=save_folder_atlas,
             affine_only=only_affine,
         )
-        seg = np.argmax(proba_atlas_prior, axis=-1).astype(np.uint8)
-        seg_nii = nib.Nifti1Image(seg, template_seg_nii.affine)
-        nib.save(seg_nii, predicted_segmentation_path)
 
-    print(f"Registration of {atlas_name} completed after {time.time() - time_0_reg:.3f} seconds")
+    print(f"Registration and resampling of {atlas_name} completed after {time.time() - time_0_reg:.3f} seconds")
 
     # Compute the heat kernel for the GIF-like fusion
     time_0_heat = time.time()
@@ -102,17 +107,18 @@ def calculate_warped_prob_segmentation(param_list):
     else:  # Compute the heat map
         warped_atlas_nii = nib.load(warped_atlas_img_path)
         warped_atlas = warped_atlas_nii.get_fdata().astype(np.float32)
-        warped_atlas_mask = (np.argmax(proba_atlas_prior, axis=-1) > 0).astype(np.uint8)
+
         if compute_registration:  # Recompute the displacement field if registration was run
             expected_cpp_path = os.path.join(save_folder_atlas, 'cpp.nii.gz')
             expected_img_path = os.path.join(save_folder_atlas, 'img.nii.gz')
             compute_disp_from_cpp(expected_cpp_path, expected_img_path, disp_field_path)
+
         deformation = nib.load(disp_field_path).get_fdata().astype(np.float32)
         log_heat_kernel, lssd, disp_norm = log_heat_kernel_GIF(
             image=img_nii.get_fdata().astype(np.float32),
             mask=mask_nii.get_fdata().astype(np.uint8),
             atlas_warped_image=warped_atlas,
-            atlas_warped_mask=warped_atlas_mask,
+            atlas_warped_mask=warped_atlas_seg_mask,
             deformation_field=deformation,
         )
         # Save the heat kernel
@@ -125,11 +131,11 @@ def calculate_warped_prob_segmentation(param_list):
     time_0_clean = time.time()
     for f_n in os.listdir(save_folder_atlas):
         p = os.path.join(save_folder_atlas, f_n)
-        if not p in to_not_remove:
+        if not p in to_not_remove and not any([p.split(os.sep)[-1].startswith(s) for s in to_not_remove_which_starts_with]):
             os.system('rm %s' % p)
     print(f"Cleaning completed after {time.time() - time_0_clean:.3f} seconds")
 
-    return warped_altas_seg_onehot_path, heat_kernel_path
+    return prob_warped_atlas_seg_l_paths, heat_kernel_path
 
 def multi_atlas_segmentation(img_nii,
                              mask_nii,
@@ -161,7 +167,19 @@ def multi_atlas_segmentation(img_nii,
 
     # Register the atlas segmentations to the input image
 
-    param_lists = [[folder, save_folder, reuse_existing_pred, force_recompute_heat_kernels, img_nii, mask_nii, grid_spacing, be, le, lp, only_affine] for folder in atlas_folder_list]
+    param_lists = [[folder,
+                    save_folder,
+                    reuse_existing_pred,
+                    force_recompute_heat_kernels,
+                    img_nii,
+                    mask_nii,
+                    num_class,
+                    grid_spacing,
+                    be,
+                    le,
+                    lp,
+                    only_affine]
+                   for folder in atlas_folder_list]
 
     num_pools = 2
 
@@ -186,13 +204,17 @@ def multi_atlas_segmentation(img_nii,
         x = log_heat_kernels - max_heat[None, :, :, :]
         exp_x = np.exp(x)
         norm = np.sum(exp_x, axis=0)
-        weights = exp_x / norm[None, :, :, :]
+        weights = exp_x / norm[None, :, :, :]  # num_atlases x H x W x D
 
+        proba_seg = np.zeros(weights.shape[1:] + (num_class,))
         multi_atlas_proba_seg = np.zeros(tuple(weights.shape[1:]+(num_class,)))
-        for i, f in enumerate(tqdm(proba_seg_path_list)):
-            proba_seg = nib.load(f).get_fdata()
-            weigthed_proba_seg = weights[i,:,:,:, None] * proba_seg
-            multi_atlas_proba_seg += weigthed_proba_seg
+        for atlas_idx, warped_atlas_seg_l_paths in enumerate(tqdm(proba_seg_path_list)):
+            for l, seg_l_path in enumerate(warped_atlas_seg_l_paths):
+                seg_l = nib.load(seg_l_path).get_fdata()  # H x W x D
+                proba_seg[:, :, :, l] = seg_l
+
+            weigthed_proba_seg = weights[atlas_idx,:,:,:, None] * proba_seg  # 1 x H x W x D x num_classes
+            multi_atlas_proba_seg += weigthed_proba_seg  # 1 x H x W x D x num_classes
     else:  # Vanilla average
         multi_atlas_proba_seg = np.mean(np.stack([nib.load(f).get_fdata() for f in proba_seg_path_list], axis=0), axis=0)
 
