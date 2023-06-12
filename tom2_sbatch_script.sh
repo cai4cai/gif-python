@@ -6,6 +6,7 @@
 #SBATCH --time=0-72:00:00        # Run for a maximum time of 0 days, 72 hours, 00 mins, 00 secs
 #SBATCH --nodes=1            # Request N nodes
 #SBATCH --ntasks-per-node=64  # Request n cores or task per node
+#SBATCH --mem-per-cpu=3500M
 
 # the environment variable SLURM_ARRAY_TASK_ID contains
 # the index corresponding to the current job step
