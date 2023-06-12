@@ -195,7 +195,6 @@ def _propagate_labels(num_class, atlas_seg_nii, image_nii, aff_path, cpp_path, s
     warped_atlas_seg_l_paths = [os.path.join(save_folder, f"warped_atlas_seg_{l}.nii.gz") for l in range(num_class)]
 
     for l in range(num_class):
-        print(l)
         atlas_seg_l = np.zeros_like(atlas_seg)
         atlas_seg_l[atlas_seg==l] = 1
 

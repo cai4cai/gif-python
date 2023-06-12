@@ -26,6 +26,15 @@ def _weights_from_log_heat_kernels(log_heat_kernels):
     return w
 
 
+def nibabel_load_and_get_fdata(filepath):
+    return nib.load(filepath).get_fdata()
+
+
+def nibabel_load_and_get_fdata_and_weight(params):
+    path = params[0]
+    weights = params[1]
+    return weights * nib.load(path).get_fdata()
+
 def calculate_warped_prob_segmentation(param_list):
     folder, save_folder, reuse_existing_pred, force_recompute_heat_kernels, img_nii, mask_nii, num_class, grid_spacing, be, le, lp, only_affine = param_list
     atlas_name = os.path.split(folder)[1]
@@ -187,36 +196,43 @@ def multi_atlas_segmentation(img_nii,
         print(f"Start multiprocessing with {num_pools} pools...")
         out =  p.map(calculate_warped_prob_segmentation, param_lists)
 
-    proba_seg_path_list = [p[0] for p in out]
+    proba_seg_path_list_a_l = [p[0] for p in out]
     log_heat_kernel_path_list = [p[1] for p in out]
 
 
     # Merging probabilities
     t_0_merge = time.time()
     MAX_NUM_VOX_IN_MEM = 8e9/4 # xGB/4bytes(float32)
-    num_atlases = len(proba_seg_path_list)
+    num_atlases = len(proba_seg_path_list_a_l)
     block_edge_len = int(np.ceil(MAX_NUM_VOX_IN_MEM**(1/3)/num_atlases))
     # Merge the proba predictions
     print("Merging probabilities...")
+
     if merging_method == 'GIF':
-        log_heat_kernels = np.stack([nib.load(f).get_fdata() for f in log_heat_kernel_path_list], axis=0)  # n_atlas, n_x, n_y, n_z
+        with Pool(num_pools) as p:
+            log_heat_kernels = p.map(nibabel_load_and_get_fdata, log_heat_kernel_path_list)  # n_atlas, n_x, n_y, n_z
+        log_heat_kernels = np.stack(log_heat_kernels, axis=0)
         max_heat = log_heat_kernels.max(axis=0)
         x = log_heat_kernels - max_heat[None, :, :, :]
         exp_x = np.exp(x)
         norm = np.sum(exp_x, axis=0)
         weights = exp_x / norm[None, :, :, :]  # num_atlases x H x W x D
 
-        proba_seg = np.zeros(weights.shape[1:] + (num_class,))
         multi_atlas_proba_seg = np.zeros(tuple(weights.shape[1:]+(num_class,)))
-        for atlas_idx, warped_atlas_seg_l_paths in enumerate(tqdm(proba_seg_path_list)):
-            for l, seg_l_path in enumerate(warped_atlas_seg_l_paths):
-                seg_l = nib.load(seg_l_path).get_fdata()  # H x W x D
-                proba_seg[:, :, :, l] = seg_l
 
-            weigthed_proba_seg = weights[atlas_idx,:,:,:, None] * proba_seg  # 1 x H x W x D x num_classes
-            multi_atlas_proba_seg += weigthed_proba_seg  # 1 x H x W x D x num_classes
+        proba_seg_path_list_l_a = list(map(list, zip(*proba_seg_path_list_a_l)))  # transpose the list of lists
+
+        for l, proba_seg_path_list_a in enumerate(proba_seg_path_list_l_a):
+
+            with Pool(num_pools) as p:
+                weighted_proba_seg_a = p.map(nibabel_load_and_get_fdata_and_weight, [[proba_seg_path_list_a[a], weights[a, :, :, :]] for a in range(num_atlases)])
+            weighted_proba_seg_a = np.array(weighted_proba_seg_a)  # num_atlas x H x W x D ; converts list of arrays to numpy array
+            weighted_proba_seg = np.sum(weighted_proba_seg_a, axis=0)  # H x W x D; final weighted sum for class l
+
+            multi_atlas_proba_seg[:, :, :, l] = np.sum(weighted_proba_seg, axis=0)  # H x W x D x num_classes
+
     else:  # Vanilla average
-        multi_atlas_proba_seg = np.mean(np.stack([nib.load(f).get_fdata() for f in proba_seg_path_list], axis=0), axis=0)
+        multi_atlas_proba_seg = np.mean(np.stack([nib.load(f).get_fdata() for f in proba_seg_path_list_a_l], axis=0), axis=0)
 
     t_end = time.time()
     print(f"Merging completed after {t_end - t_0_merge:.3f} seconds")
