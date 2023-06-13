@@ -104,10 +104,10 @@ def _register_atlas_to_img(image_nii, mask_nii,
 
     # TODO: remove this part or make consistent
     if os.path.isfile(os.path.join(save_folder, 'outputAffine.txt')) \
-            and os.path.isfile(os.path.join(save_folder, 'cpp.nii')) \
+            and os.path.isfile(os.path.join(save_folder, 'cpp.nii.gz')) \
             and os.path.isfile(warped_atlas_img_path):
         print("Found registration files... Skip registration...")
-        return os.path.join(save_folder, 'outputAffine.txt'), os.path.join(save_folder, 'cpp.nii')
+        return os.path.join(save_folder, 'outputAffine.txt'), os.path.join(save_folder, 'cpp.nii.gz')
 
     # Return the path to the output velocity field returned by NiftyReg
     def save_nifti(volume_np, affine, save_path):
@@ -159,7 +159,7 @@ def _register_atlas_to_img(image_nii, mask_nii,
     # Registration
     reg_loss_options = '-lncc 0 6'
     res_path = warped_atlas_img_path
-    cpp_path = os.path.join(save_folder, 'cpp.nii')
+    cpp_path = os.path.join(save_folder, 'cpp.nii.gz')
     reg_options = '-be %f -le %f -sx %s -ln 3 -lp %d %s -voff' % \
         (be, le, grid_spacing, lp, reg_loss_options)
     reg_cmd = '%s/reg_f3d -ref "%s" -rmask "%s" -flo "%s" -fmask "%s" -res "%s" -cpp "%s" %s -omp %s' % \
@@ -184,7 +184,7 @@ def _propagate_labels(num_class, atlas_seg_nii, image_nii, aff_path, cpp_path, s
     # combine input transforms
     if combine_transforms:
         # combine affine and non-linear transform
-        comb_tfm_path = os.path.join(os.path.dirname(cpp_path), 'combined_transform.nii')
+        comb_tfm_path = os.path.join(os.path.dirname(cpp_path), 'combined_transform.nii.gz')
         cmd = '%s/reg_transform -comp "%s" "%s" "%s" -ref "%s" -omp %s' % \
               (NIFTYREG_PATH, aff_path, cpp_path, comb_tfm_path, image_path, OMP)
         os.system(cmd)
@@ -192,7 +192,7 @@ def _propagate_labels(num_class, atlas_seg_nii, image_nii, aff_path, cpp_path, s
     # Smooth labels and save them separately
     atlas_seg = atlas_seg_nii.get_fdata().astype(np.uint8)
 
-    warped_atlas_seg_l_paths = [os.path.join(save_folder, f"warped_atlas_seg_{l}.nii") for l in range(num_class)]
+    warped_atlas_seg_l_paths = [os.path.join(save_folder, f"warped_atlas_seg_{l}.nii.gz") for l in range(num_class)]
 
     for l in range(num_class):
         atlas_seg_l = np.zeros_like(atlas_seg)
@@ -202,7 +202,7 @@ def _propagate_labels(num_class, atlas_seg_nii, image_nii, aff_path, cpp_path, s
         atlas_seg_l = gaussian_filter(atlas_seg_l, sigma=SIGMA, order=0, mode='nearest')
 
         # save atlas seg as input for reg_resample
-        atlas_seg_l_path = os.path.join(save_folder, f"atlas_seg_{l}.nii")
+        atlas_seg_l_path = os.path.join(save_folder, f"atlas_seg_{l}.nii.gz")
         atlas_seg_l_nii = nib.Nifti1Image(atlas_seg_l, atlas_seg_nii.affine)
         nib.save(atlas_seg_l_nii, atlas_seg_l_path)
 
@@ -219,7 +219,7 @@ def _propagate_labels(num_class, atlas_seg_nii, image_nii, aff_path, cpp_path, s
             # Affine deformation of the atlas segmentation
             if aff_path is not None:
                 if cpp_path is not None:
-                    aff_warped_atlas_seg_l_path = os.path.join(save_folder, f"aff_warped_atlas_seg_{l}.nii")  # intermediate output of affine transform
+                    aff_warped_atlas_seg_l_path = os.path.join(save_folder, f"aff_warped_atlas_seg_{l}.nii.gz")  # intermediate output of affine transform
                 else:
                     aff_warped_atlas_seg_l_path = warped_atlas_seg_l_path  # write directly to final warped file
 
