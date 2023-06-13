@@ -81,10 +81,10 @@ def probabilistic_segmentation_prior(image_nii, mask_nii,
 
 
 def _mask_image(image_nii, mask_nii, num_dilation):
-    image_np = image_nii.get_fdata()
-    mask_np = mask_nii.get_fdata()
+    image_np = image_nii.get_fdata().astype(np.float32)
+    mask_np = mask_nii.get_fdata().astype(np.uint8)
     if num_dilation > 0:
-        dilated_mask_np = binary_dilation(mask_np, iterations=num_dilation)
+        dilated_mask_np = binary_dilation(mask_np, iterations=num_dilation).astype(np.uint8)
     else:
         dilated_mask_np = mask_np
     image_np[dilated_mask_np == 0] = 0
@@ -124,12 +124,12 @@ def _register_atlas_to_img(image_nii, mask_nii,
     save_nifti(image_nii.get_fdata(), image_nii.affine, img_path)
     save_nifti(atlas_nii.get_fdata(), atlas_nii.affine, atlas_img_seg_path)
     save_nifti(
-        mask_nii.get_fdata(),
+        mask_nii.get_fdata().astype(np.uint8),
         mask_nii.affine,
         mask_path
     )
     save_nifti(
-        atlas_mask_nii.get_fdata(),
+        atlas_mask_nii.get_fdata().astype(np.uint8),
         atlas_mask_nii.affine,
         atlas_mask_path
     )
@@ -190,14 +190,13 @@ def _propagate_labels(num_class, atlas_seg_nii, image_nii, aff_path, cpp_path, s
         os.system(cmd)
 
     # Smooth labels and save them separately
-    atlas_seg = atlas_seg_nii.get_fdata()
+    atlas_seg = atlas_seg_nii.get_fdata().astype(np.uint8)
 
     warped_atlas_seg_l_paths = [os.path.join(save_folder, f"warped_atlas_seg_{l}.nii.gz") for l in range(num_class)]
 
-    atlas_seg_l = np.zeros_like(atlas_seg)
     for l in range(num_class):
         print(l)
-        atlas_seg_l[:] = 0
+        atlas_seg_l = np.zeros_like(atlas_seg)
         atlas_seg_l[atlas_seg==l] = 1
 
         # smooth the atlas
@@ -242,7 +241,7 @@ def _propagate_labels(num_class, atlas_seg_nii, image_nii, aff_path, cpp_path, s
     for l in range(num_class):
         # Load and return the warped atlas proba numpy array
         warped_altas_seg_l_nii = nib.load(warped_atlas_seg_l_paths[l])
-        warped_altas_seg_l = warped_altas_seg_l_nii.get_fdata() # H x W x D; is smoothed
+        warped_altas_seg_l = warped_altas_seg_l_nii.get_fdata().astype(np.float32)  # H x W x D; is smoothed
 
         if l == 0:
             sum_warped_atlas_segs = np.zeros_like(warped_altas_seg_l)
@@ -253,7 +252,7 @@ def _propagate_labels(num_class, atlas_seg_nii, image_nii, aff_path, cpp_path, s
     # reg_resample pads all images with 0. Include these regions as background by setting them to 1 in the background segmentation
     # sum_warped_atlas_segs is 0 for pixels that were added by padding
     warped_altas_seg_0_nii = nib.load(warped_atlas_seg_l_paths[0])
-    warped_altas_seg_0 = warped_altas_seg_0_nii.get_fdata()
+    warped_altas_seg_0 = warped_altas_seg_0_nii.get_fdata().astype(np.float32)
     warped_altas_seg_0[sum_warped_atlas_segs == 0] = 1.  # H x W x D x C ; label 0 map is now 1 where no label was present (which is where reg_resample padded with 0)
     warped_altas_seg_0_nii = nib.Nifti1Image(warped_altas_seg_0, warped_altas_seg_0_nii.affine)
     nib.save(warped_altas_seg_0_nii, warped_atlas_seg_l_paths[0])
@@ -264,7 +263,7 @@ def _propagate_labels(num_class, atlas_seg_nii, image_nii, aff_path, cpp_path, s
     # additionally calculate the atlas mask (where background has the largest probability)
     for l in range(num_class):
         warped_altas_seg_l_nii = nib.load(warped_atlas_seg_l_paths[l])
-        warped_altas_seg_l = warped_altas_seg_l_nii.get_fdata() # H x W x D; is smoothed
+        warped_altas_seg_l = warped_altas_seg_l_nii.get_fdata().astype(np.float32)  # H x W x D; is smoothed
         warped_altas_seg_normalized_l = warped_altas_seg_l / sum_warped_atlas_segs
         warped_altas_seg_normalized_l_nii = nib.Nifti1Image(warped_altas_seg_normalized_l, atlas_seg_nii.affine)
         nib.save(warped_altas_seg_normalized_l_nii, warped_atlas_seg_l_paths[l])

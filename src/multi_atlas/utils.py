@@ -24,8 +24,8 @@ def compute_disp_from_cpp(cpp_path, ref_path, save_disp_path):
 
     # Substract the identity to get the displacement field
     deformation_nii = nib.load(save_def_path)
-    deformation = deformation_nii.get_fdata()
-    identity = nib.load(save_id_path).get_fdata()
+    deformation = deformation_nii.get_fdata().astype(np.float32)
+    identity = nib.load(save_id_path).get_fdata().astype(np.float32)
     disp = deformation - identity
     disp_nii = nib.Nifti1Image(disp, deformation_nii.affine)
     nib.save(disp_nii, save_disp_path)

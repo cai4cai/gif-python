@@ -87,7 +87,7 @@ def calculate_warped_prob_segmentation(param_list):
     if not compute_registration:
         print('\n%s already exists.\nSkip registration.' % warped_altas_seg_onehot_path)
         # proba_atlas_prior_nii = nib.load(expected_output)
-        # proba_atlas_prior = proba_atlas_prior_nii.get_fdata()
+        # proba_atlas_prior = proba_atlas_prior_nii.get_fdata().astype(np.float32)
     else:
         template_nii = nib.load(os.path.join(folder, 'srr.nii.gz'))
         template_mask_nii = nib.load(os.path.join(folder, 'mask.nii.gz'))
@@ -117,20 +117,20 @@ def calculate_warped_prob_segmentation(param_list):
     if not compute_heat_map:  # Load the existing heat map (skip computation)
         print('\n%s already exists.\nSkip heat kernel calculation.' % heat_kernel_path)
         # log_heat_kernel_nii = nib.load(expected_heat_kernel)
-        # log_heat_kernel = log_heat_kernel_nii.get_fdata()
+        # log_heat_kernel = log_heat_kernel_nii.get_fdata().astype(np.float32)
     else:  # Compute the heat map
         warped_atlas_nii = nib.load(warped_atlas_img_path)
-        warped_atlas = warped_atlas_nii.get_fdata()
+        warped_atlas = warped_atlas_nii.get_fdata().astype(np.float32)
 
         if compute_registration:  # Recompute the displacement field if registration was run
             expected_cpp_path = os.path.join(save_folder_atlas, 'cpp.nii.gz')
             expected_img_path = os.path.join(save_folder_atlas, 'img.nii.gz')
             compute_disp_from_cpp(expected_cpp_path, expected_img_path, disp_field_path)
 
-        deformation = nib.load(disp_field_path).get_fdata()
+        deformation = nib.load(disp_field_path).get_fdata().astype(np.float32)
         log_heat_kernel, lssd, disp_norm = log_heat_kernel_GIF(
-            image=img_nii.get_fdata(),
-            mask=mask_nii.get_fdata(),
+            image=img_nii.get_fdata().astype(np.float32),
+            mask=mask_nii.get_fdata().astype(np.uint8),
             atlas_warped_image=warped_atlas,
             atlas_warped_mask=warped_atlas_seg_mask,
             deformation_field=deformation,
