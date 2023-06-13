@@ -41,12 +41,12 @@ def calculate_warped_prob_segmentation(param_list):
     save_folder_atlas = os.path.join(save_folder, atlas_name)
 
     # List of files that should exist at the end of the segmentation
-    expected_cpp_path = os.path.join(save_folder_atlas, 'cpp.nii.gz')
+    expected_cpp_path = os.path.join(save_folder_atlas, 'cpp.nii')
     expected_aff_path = os.path.join(save_folder_atlas, 'outputAffine.txt')
-    atlas_seg_onehot_path = os.path.join(save_folder_atlas, 'atlas_seg_onehot.nii.gz')
-    warped_altas_seg_onehot_path = os.path.join(save_folder_atlas, 'warped_atlas_seg_onehot.nii.gz')
-    warped_atlas_img_path = os.path.join(save_folder_atlas, 'warped_atlas_img.nii.gz')
-    disp_field_path = os.path.join(save_folder_atlas, 'disp.nii.gz')
+    atlas_seg_onehot_path = os.path.join(save_folder_atlas, 'atlas_seg_onehot.nii')
+    warped_altas_seg_onehot_path = os.path.join(save_folder_atlas, 'warped_atlas_seg_onehot.nii')
+    warped_atlas_img_path = os.path.join(save_folder_atlas, 'warped_atlas_img.nii')
+    disp_field_path = os.path.join(save_folder_atlas, 'disp.nii')
     heat_kernel_path = os.path.join(save_folder_atlas, 'log_heat_kernel.nii.gz')
     to_not_remove = [  # paths to filter during the cleaning at the end
         expected_cpp_path,
@@ -118,7 +118,7 @@ def calculate_warped_prob_segmentation(param_list):
         warped_atlas = warped_atlas_nii.get_fdata().astype(np.float32)
 
         if compute_registration:  # Recompute the displacement field if registration was run
-            expected_cpp_path = os.path.join(save_folder_atlas, 'cpp.nii.gz')
+            expected_cpp_path = os.path.join(save_folder_atlas, 'cpp.nii')
             expected_img_path = os.path.join(save_folder_atlas, 'img.nii.gz')
             compute_disp_from_cpp(expected_cpp_path, expected_img_path, disp_field_path)
 
