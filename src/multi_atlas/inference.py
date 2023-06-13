@@ -209,6 +209,8 @@ def multi_atlas_segmentation(img_nii,
     print("Merging probabilities...")
 
     if merging_method == 'GIF':
+        print("Start weights calculation...")
+        t_0_weight = time.time()
         with Pool(num_pools) as p:
             log_heat_kernels = p.map(nibabel_load_and_get_fdata, log_heat_kernel_path_list)  # n_atlas, n_x, n_y, n_z
         log_heat_kernels = np.stack(log_heat_kernels, axis=0)
@@ -218,18 +220,27 @@ def multi_atlas_segmentation(img_nii,
         norm = np.sum(exp_x, axis=0)
         weights = exp_x / norm[None, :, :, :]  # num_atlases x H x W x D
 
-        multi_atlas_proba_seg = np.zeros(tuple(weights.shape[1:]+(num_class,)))
+        print(f"Weights completed after {time.time() - t_0_weight:.3f} seconds")
 
+        multi_atlas_proba_seg = np.zeros(tuple(weights.shape[1:]+(num_class,)))
         proba_seg_path_list_l_a = list(map(list, zip(*proba_seg_path_list_a_l)))  # transpose the list of lists
 
-        for l, proba_seg_path_list_a in enumerate(proba_seg_path_list_l_a):
+        print(f"Combining weights with probabilities...")
+        t_0_combprobs = time.time()
+        with Pool(num_pools) as p:
+            for l, proba_seg_path_list_a in enumerate(proba_seg_path_list_l_a):
+                print(l)
 
-            with Pool(num_pools) as p:
                 weighted_proba_seg_a = p.map(nibabel_load_and_get_fdata_and_weight, [[proba_seg_path_list_a[a], weights[a, :, :, :]] for a in range(num_atlases)])
-            weighted_proba_seg_a = np.array(weighted_proba_seg_a)  # num_atlas x H x W x D ; converts list of arrays to numpy array
-            weighted_proba_seg = np.sum(weighted_proba_seg_a, axis=0)  # H x W x D; final weighted sum for class l
 
-            multi_atlas_proba_seg[:, :, :, l] = np.sum(weighted_proba_seg, axis=0)  # H x W x D x num_classes
+                print(f"Loading and weighting of atlas probabilities for class {l} completed...")
+
+                weighted_proba_seg_a = np.array(weighted_proba_seg_a)  # num_atlas x H x W x D ; converts list of arrays to numpy array
+                weighted_proba_seg = np.sum(weighted_proba_seg_a, axis=0)  # H x W x D; final weighted sum for class l
+
+                multi_atlas_proba_seg[:, :, :, l] = weighted_proba_seg # H x W x D x num_classes
+
+        print(f"Combining weights with probabilities completed after {time.time() - t_0_combprobs:.3f} seconds")
 
     else:  # Vanilla average
         multi_atlas_proba_seg = np.mean(np.stack([nib.load(f).get_fdata() for f in proba_seg_path_list_a_l], axis=0), axis=0)
