@@ -1,4 +1,6 @@
+import cProfile
 import os
+import pstats
 import time
 
 import numpy as np
@@ -36,6 +38,9 @@ def nibabel_load_and_get_fdata_and_weight(params):
     return weights * nib.load(path).get_fdata()
 
 def calculate_warped_prob_segmentation(param_list):
+    profiler = cProfile.Profile()
+    profiler.enable()
+
     folder, save_folder, reuse_existing_pred, force_recompute_heat_kernels, img_nii, mask_nii, num_class, grid_spacing, be, le, lp, only_affine = param_list
     atlas_name = os.path.split(folder)[1]
     save_folder_atlas = os.path.join(save_folder, atlas_name)
@@ -143,6 +148,10 @@ def calculate_warped_prob_segmentation(param_list):
         if not p in to_not_remove and not any([p.split(os.sep)[-1].startswith(s) for s in to_not_remove_which_starts_with]):
             os.system('rm %s' % p)
     print(f"Cleaning completed after {time.time() - time_0_clean:.3f} seconds")
+
+    profiler.disable()
+    stats = pstats.Stats(profiler).sort_stats('ncalls')
+    stats.print_stats()
 
     return prob_warped_atlas_seg_l_paths, heat_kernel_path
 
