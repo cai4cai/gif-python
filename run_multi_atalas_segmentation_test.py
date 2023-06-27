@@ -10,8 +10,8 @@ NUM_CLASS=160
 
 input_path = "./data/input/BraTS2021_00000/BraTS2021_00000_t1.nii.gz"
 mask_path = "./data/input/BraTS2021_00000/BraTS2021_00000_inv-tumor-mask.nii.gz"
-atlas_list = glob("./data/GENFI_atlases/*")
-atlas_pred_save_folder = "./data/results_GENFI_atlases"
+atlas_list = glob("./data/GENFI_atlases_debug/*")
+atlas_pred_save_folder = "./data/results_GENFI_atlases_debug"
 
 img_nii = nib.load(input_path)
 img = img_nii.get_fdata().astype(np.float32)
@@ -36,3 +36,8 @@ pred_proba_atlas = multi_atlas_segmentation(
         reuse_existing_pred=False,
         force_recompute_heat_kernels=False,
     )
+    
+predicted_segmentation = np.argmax(pred_proba_atlas, axis=3).astype(np.uint8)*mask_nii.get_fdata()
+
+predicted_segmentation_nii = nib.Nifti1Image(predicted_segmentation, img_nii.affine)
+nib.save(predicted_segmentation_nii, os.path.join(atlas_pred_save_folder, "predicted_segmentation.nii.gz"))
