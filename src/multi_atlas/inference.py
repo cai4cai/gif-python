@@ -1,6 +1,5 @@
 import cProfile
 import os
-import pstats
 import time
 
 import numpy as np
@@ -17,6 +16,8 @@ SUPPORTED_MERGING_METHOD = [
     'mean',
     'GIF',
 ]
+
+MULTIPROCESSING = False
 
 
 def _weights_from_log_heat_kernels(log_heat_kernels):
@@ -38,9 +39,6 @@ def nibabel_load_and_get_fdata_and_weight(params):
     return weights * nib.load(path).get_fdata()
 
 def calculate_warped_prob_segmentation(param_list):
-    profiler = cProfile.Profile()
-    profiler.enable()
-
     folder, save_folder, reuse_existing_pred, force_recompute_heat_kernels, img_nii, mask_nii, num_class, grid_spacing, be, le, lp, only_affine = param_list
     atlas_name = os.path.split(folder)[1]
     save_folder_atlas = os.path.join(save_folder, atlas_name)
@@ -149,10 +147,6 @@ def calculate_warped_prob_segmentation(param_list):
             os.system('rm %s' % p)
     print(f"Cleaning completed after {time.time() - time_0_clean:.3f} seconds")
 
-    profiler.disable()
-    stats = pstats.Stats(profiler).sort_stats('ncalls')
-    stats.print_stats()
-
     return prob_warped_atlas_seg_l_paths, heat_kernel_path
 
 def multi_atlas_segmentation(img_nii,
@@ -201,9 +195,16 @@ def multi_atlas_segmentation(img_nii,
 
     num_pools = 2
 
-    with Pool(num_pools) as p:
-        print(f"Start multiprocessing with {num_pools} pools...")
-        out =  p.map(calculate_warped_prob_segmentation, param_lists)
+    if MULTIPROCESSING:
+        with Pool(num_pools) as p:
+            print(f"Start multiprocessing with {num_pools} pools...")
+            out =  p.map(calculate_warped_prob_segmentation, param_lists)
+    else:
+        out = []
+        for params in param_lists:
+            result = calculate_warped_prob_segmentation(params)
+            out.append(result)
+
 
     proba_seg_path_list_a_l = [p[0] for p in out]
     log_heat_kernel_path_list = [p[1] for p in out]
@@ -220,8 +221,16 @@ def multi_atlas_segmentation(img_nii,
     if merging_method == 'GIF':
         print("Start weights calculation...")
         t_0_weight = time.time()
-        with Pool(num_pools) as p:
-            log_heat_kernels = p.map(nibabel_load_and_get_fdata, log_heat_kernel_path_list)  # n_atlas, n_x, n_y, n_z
+
+        if MULTIPROCESSING:
+            with Pool(num_pools) as p:
+                log_heat_kernels = p.map(nibabel_load_and_get_fdata, log_heat_kernel_path_list)  # n_atlas, n_x, n_y, n_z
+        else:
+            log_heat_kernels = []
+            for path in log_heat_kernel_path_list:
+                kernel_data = nibabel_load_and_get_fdata(path)
+                log_heat_kernels.append(kernel_data)
+
         log_heat_kernels = np.stack(log_heat_kernels, axis=0)
         max_heat = log_heat_kernels.max(axis=0)
         x = log_heat_kernels - max_heat[None, :, :, :]
