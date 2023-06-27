@@ -200,7 +200,8 @@ def _propagate_labels(num_class, atlas_seg_nii, image_nii, aff_path, cpp_path, s
         atlas_seg_l[atlas_seg==l] = 1
 
         # smooth the atlas
-        atlas_seg_l = gaussian_filter(atlas_seg_l, sigma=SIGMA, order=0, mode='nearest')
+        if SIGMA>0:
+            atlas_seg_l = gaussian_filter(atlas_seg_l, sigma=SIGMA, order=0, mode='nearest')
 
         # save atlas seg as input for reg_resample
         atlas_seg_l_path = os.path.join(save_folder, f"atlas_seg_{l}.nii.gz")
