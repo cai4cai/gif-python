@@ -41,6 +41,7 @@ echo Submitting run_multi_atalas_segmentation_test.py
 
 timestamp=$(date -d "today" +"%Y-%m-%d-%H_%M_%S")
 python -m cProfile -o logs/profile_${timestamp}.dat run_multi_atalas_segmentation_test.py
+#python run_multi_atalas_segmentation_test.py
 
 cp logs/profile_${timestamp}.dat logs/profile_latest.dat
 
