@@ -59,6 +59,9 @@ MAX_GA = 38
 # RESAMPLING
 RESAMPLE_METHOD = 0  # 0: nearest neighbor interpolation on label map, 1: (smoothing and) linear interpolation on one-hot encoded labels
 
+# MULTIPROCESSING
+MULTIPROCESSING = True
+
 # PARENT FOLDERS
 HOME_FOLDER = '/home/aaron'
 WORKSPACE_FOLDER = os.path.join(HOME_FOLDER, 'Dropbox/KCL/Projects')

@@ -9,7 +9,7 @@ from tqdm import tqdm
 from src.multi_atlas.atlas_propagation import probabilistic_segmentation_prior
 from src.multi_atlas.utils import compute_disp_from_cpp
 from src.multi_atlas.multi_atlas_fusion_weights import log_heat_kernel_GIF
-from src.utils.definitions import RESAMPLE_METHOD
+from src.utils.definitions import RESAMPLE_METHOD, MULTIPROCESSING
 
 
 from multiprocessing import Pool
@@ -18,9 +18,6 @@ SUPPORTED_MERGING_METHOD = [
     'mean',
     'GIF',
 ]
-
-MULTIPROCESSING = False
-
 
 def _weights_from_log_heat_kernels(log_heat_kernels):
     max_heat = log_heat_kernels.max(axis=0)
