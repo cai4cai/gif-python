@@ -56,6 +56,8 @@ ATLAS_MARGINS_SPINA_BIFIDA = ATLAS_MARGINS_SPINA_BIFIDA_MM / IMG_RES
 MIN_GA = 21
 MAX_GA = 38
 
+# RESAMPLING
+RESAMPLE_METHOD = 0  # 0: nearest neighbor interpolation on label map, 1: (smoothing and) linear interpolation on one-hot encoded labels
 
 # PARENT FOLDERS
 HOME_FOLDER = '/home/aaron'

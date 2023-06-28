@@ -4,8 +4,7 @@ from scipy.ndimage import gaussian_filter
 from scipy.ndimage.morphology import binary_dilation
 import numpy as np
 from time import time
-from src.utils.definitions import NIFTYREG_PATH
-
+from src.utils.definitions import NIFTYREG_PATH, RESAMPLE_METHOD
 
 SIGMA = 0  # sigma for smoothing the segmentation prior
 OMP = 8
@@ -58,7 +57,7 @@ def probabilistic_segmentation_prior(image_nii, mask_nii,
     )
 
     # Propagate the labels
-    prob_warped_atlas_seg_l_paths, warped_atlas_seg_mask = _propagate_labels(
+    warped_atlas_path_or_prob_seg_l_paths, warped_atlas_seg_mask = _propagate_labels(
         num_class=num_class,
         atlas_seg_nii=template_seg_nii,
         image_nii=masked_image_nii,
@@ -77,7 +76,7 @@ def probabilistic_segmentation_prior(image_nii, mask_nii,
     seconds = duration - minutes * 60
     print('The atlas propagation has been performed in %dmin%dsec' % (minutes, seconds))
 
-    return prob_warped_atlas_seg_l_paths, warped_atlas_seg_mask
+    return warped_atlas_path_or_prob_seg_l_paths, warped_atlas_seg_mask
 
 
 def _mask_image(image_nii, mask_nii, num_dilation):
@@ -192,87 +191,137 @@ def _propagate_labels(num_class, atlas_seg_nii, image_nii, aff_path, cpp_path, s
     # Smooth labels and save them separately
     atlas_seg = atlas_seg_nii.get_fdata().astype(np.uint8)
 
-    warped_atlas_seg_l_paths = [os.path.join(save_folder, f"warped_atlas_seg_{l}.nii.gz") for l in range(num_class)]
 
-    for l in range(num_class):
-        print(l)
-        atlas_seg_l = np.zeros_like(atlas_seg)
-        atlas_seg_l[atlas_seg==l] = 1
+    if RESAMPLE_METHOD == 0:
+        if SIGMA > 0:
+            raise Exception("Must not smooth multi-label volume...")
 
-        # smooth the atlas
-        if SIGMA>0:
-            atlas_seg_l = gaussian_filter(atlas_seg_l, sigma=SIGMA, order=0, mode='nearest')
+        # Save the atlas seg as input for reg_resample
+        atlas_seg_path = os.path.join(save_folder, "atlas_seg.nii.gz")
+        atlas_seg_nii = nib.Nifti1Image(atlas_seg, atlas_seg_nii.affine)
+        nib.save(atlas_seg_nii, atlas_seg_path)
 
-        # save atlas seg as input for reg_resample
-        atlas_seg_l_path = os.path.join(save_folder, f"atlas_seg_{l}.nii.gz")
-        atlas_seg_l_nii = nib.Nifti1Image(atlas_seg_l, atlas_seg_nii.affine)
-        nib.save(atlas_seg_l_nii, atlas_seg_l_path)
+        warped_atlas_seg_path = os.path.join(save_folder, f"warped_atlas_seg.nii.gz")
 
-        # where should reg_resample save the warped files
-        warped_atlas_seg_l_path = warped_atlas_seg_l_paths[l]
-
+        # Warp the atlas seg using reg_resample and save the warped file
         if combine_transforms:
             # Warp the atlas seg given a pre-computed transformation (vel) and save it
-            cmd = '%s/reg_resample -ref "%s" -flo "%s" -trans "%s" -res "%s" -inter 1 -voff -omp %s' % \
-                  (NIFTYREG_PATH, image_path, atlas_seg_l_path, comb_tfm_path, warped_atlas_seg_l_path, OMP)
+            cmd = '%s/reg_resample -ref "%s" -flo "%s" -trans "%s" -res "%s" -inter 0 -voff -omp %s' % \
+                  (NIFTYREG_PATH, image_path, atlas_seg_path, comb_tfm_path, warped_atlas_seg_path, OMP)
             os.system(cmd)
-
         else:
             # Affine deformation of the atlas segmentation
             if aff_path is not None:
                 if cpp_path is not None:
-                    aff_warped_atlas_seg_l_path = os.path.join(save_folder, f"aff_warped_atlas_seg_{l}.nii.gz")  # intermediate output of affine transform
+                    aff_warped_atlas_seg_path = os.path.join(save_folder,
+                                                             "aff_warped_atlas_seg.nii.gz")  # intermediate output of affine transform
                 else:
-                    aff_warped_atlas_seg_l_path = warped_atlas_seg_l_path  # write directly to final warped file
+                    aff_warped_atlas_seg_path = warped_atlas_seg_path  # write directly to final warped file
 
-                cmd = '%s/reg_resample -ref "%s" -flo "%s" -trans "%s" -res "%s" -inter 1 -voff -omp %s' % \
-                    (NIFTYREG_PATH, image_path, atlas_seg_l_path, aff_path, aff_warped_atlas_seg_l_path, OMP)
+                cmd = '%s/reg_resample -ref "%s" -flo "%s" -trans "%s" -res "%s" -inter 0 -voff -omp %s' % \
+                      (NIFTYREG_PATH, image_path, atlas_seg_path, aff_path, aff_warped_atlas_seg_path, OMP)
                 os.system(cmd)
             else:
-                aff_warped_atlas_seg_l_path = atlas_seg_l_path
+                aff_warped_atlas_seg_path = atlas_seg_path
 
             if cpp_path is not None:
                 # Warp the atlas seg given a pre-computed transformation (vel) and save it
-                cmd = '%s/reg_resample -ref "%s" -flo "%s" -trans "%s" -res "%s" -inter 1 -voff -omp %s' % \
-                    (NIFTYREG_PATH, image_path, aff_warped_atlas_seg_l_path, cpp_path, warped_atlas_seg_l_path, OMP)
+                cmd = '%s/reg_resample -ref "%s" -flo "%s" -trans "%s" -res "%s" -inter 0 -voff -omp %s' % \
+                      (NIFTYREG_PATH, image_path, aff_warped_atlas_seg_path, cpp_path, warped_atlas_seg_path, OMP)
                 os.system(cmd)
 
+        # Load the warped atlas seg volume
+        warped_atlas_seg_nii = nib.load(warped_atlas_seg_path)
+        warped_atlas_seg = warped_atlas_seg_nii.get_fdata().astype(np.uint8)
 
-    sum_warped_atlas_segs = None
-    for l in range(num_class):
-        # Load and return the warped atlas proba numpy array
-        warped_altas_seg_l_nii = nib.load(warped_atlas_seg_l_paths[l])
-        warped_altas_seg_l = warped_altas_seg_l_nii.get_fdata().astype(np.float32)  # H x W x D; is smoothed
+        # Create the background segmentation
+        warped_atlas_seg_mask = np.zeros_like(warped_atlas_seg)
+        warped_atlas_seg_mask[warped_atlas_seg > 0] = 1
 
-        if l == 0:
-            sum_warped_atlas_segs = np.zeros_like(warped_altas_seg_l)
-        else:
-            sum_warped_atlas_segs += warped_altas_seg_l
+        return warped_atlas_seg_path, warped_atlas_seg_mask
 
 
-    # reg_resample pads all images with 0. Include these regions as background by setting them to 1 in the background segmentation
-    # sum_warped_atlas_segs is 0 for pixels that were added by padding
-    warped_altas_seg_0_nii = nib.load(warped_atlas_seg_l_paths[0])
-    warped_altas_seg_0 = warped_altas_seg_0_nii.get_fdata().astype(np.float32)
-    warped_altas_seg_0[sum_warped_atlas_segs == 0] = 1.  # H x W x D x C ; label 0 map is now 1 where no label was present (which is where reg_resample padded with 0)
-    warped_altas_seg_0_nii = nib.Nifti1Image(warped_altas_seg_0, warped_altas_seg_0_nii.affine)
-    nib.save(warped_altas_seg_0_nii, warped_atlas_seg_l_paths[0])
+    elif RESAMPLE_METHOD == 1:
+        warped_atlas_seg_l_paths = [os.path.join(save_folder, f"warped_atlas_seg_{l}.nii.gz") for l in range(num_class)]
+        for l in range(num_class):
+            print(l)
+            atlas_seg_l = np.zeros_like(atlas_seg)
+            atlas_seg_l[atlas_seg==l] = 1
 
-    sum_warped_atlas_segs[sum_warped_atlas_segs == 0] = 1  # Update the sum as well for normalization
+            # smooth the atlas
+            if SIGMA>0:
+                atlas_seg_l = gaussian_filter(atlas_seg_l, sigma=SIGMA, order=0, mode='nearest')
 
-    # get probabilistic atlas by normalizing across label dimension
-    # additionally calculate the atlas mask (where background has the largest probability)
-    for l in range(num_class):
-        warped_altas_seg_l_nii = nib.load(warped_atlas_seg_l_paths[l])
-        warped_altas_seg_l = warped_altas_seg_l_nii.get_fdata().astype(np.float32)  # H x W x D; is smoothed
-        warped_altas_seg_normalized_l = warped_altas_seg_l / sum_warped_atlas_segs
-        warped_altas_seg_normalized_l_nii = nib.Nifti1Image(warped_altas_seg_normalized_l, atlas_seg_nii.affine)
-        nib.save(warped_altas_seg_normalized_l_nii, warped_atlas_seg_l_paths[l])
+            # save atlas seg as input for reg_resample
+            atlas_seg_l_path = os.path.join(save_folder, f"atlas_seg_{l}.nii.gz")
+            atlas_seg_l_nii = nib.Nifti1Image(atlas_seg_l, atlas_seg_nii.affine)
+            nib.save(atlas_seg_l_nii, atlas_seg_l_path)
 
-        if l == 0:
-            warped_altas_seg_0 = warped_altas_seg_l
-            warped_atlas_seg_mask = np.zeros_like(warped_altas_seg_0)
-        else:
-            warped_atlas_seg_mask[warped_altas_seg_l > warped_altas_seg_0] = 1
+            # where should reg_resample save the warped files
+            warped_atlas_seg_l_path = warped_atlas_seg_l_paths[l]
 
-    return warped_atlas_seg_l_paths, warped_atlas_seg_mask
+            if combine_transforms:
+                # Warp the atlas seg given a pre-computed transformation (vel) and save it
+                cmd = '%s/reg_resample -ref "%s" -flo "%s" -trans "%s" -res "%s" -inter 1 -voff -omp %s' % \
+                      (NIFTYREG_PATH, image_path, atlas_seg_l_path, comb_tfm_path, warped_atlas_seg_l_path, OMP)
+                os.system(cmd)
+
+            else:
+                # Affine deformation of the atlas segmentation
+                if aff_path is not None:
+                    if cpp_path is not None:
+                        aff_warped_atlas_seg_l_path = os.path.join(save_folder, f"aff_warped_atlas_seg_{l}.nii.gz")  # intermediate output of affine transform
+                    else:
+                        aff_warped_atlas_seg_l_path = warped_atlas_seg_l_path  # write directly to final warped file
+
+                    cmd = '%s/reg_resample -ref "%s" -flo "%s" -trans "%s" -res "%s" -inter 1 -voff -omp %s' % \
+                        (NIFTYREG_PATH, image_path, atlas_seg_l_path, aff_path, aff_warped_atlas_seg_l_path, OMP)
+                    os.system(cmd)
+                else:
+                    aff_warped_atlas_seg_l_path = atlas_seg_l_path
+
+                if cpp_path is not None:
+                    # Warp the atlas seg given a pre-computed transformation (vel) and save it
+                    cmd = '%s/reg_resample -ref "%s" -flo "%s" -trans "%s" -res "%s" -inter 1 -voff -omp %s' % \
+                        (NIFTYREG_PATH, image_path, aff_warped_atlas_seg_l_path, cpp_path, warped_atlas_seg_l_path, OMP)
+                    os.system(cmd)
+
+
+        sum_warped_atlas_segs = None
+        for l in range(num_class):
+            # Load and return the warped atlas proba numpy array
+            warped_altas_seg_l_nii = nib.load(warped_atlas_seg_l_paths[l])
+            warped_altas_seg_l = warped_altas_seg_l_nii.get_fdata().astype(np.float32)  # H x W x D; is smoothed
+
+            if l == 0:
+                sum_warped_atlas_segs = np.zeros_like(warped_altas_seg_l)
+            else:
+                sum_warped_atlas_segs += warped_altas_seg_l
+
+
+        # reg_resample pads all images with 0. Include these regions as background by setting them to 1 in the background segmentation
+        # sum_warped_atlas_segs is 0 for pixels that were added by padding
+        warped_altas_seg_0_nii = nib.load(warped_atlas_seg_l_paths[0])
+        warped_altas_seg_0 = warped_altas_seg_0_nii.get_fdata().astype(np.float32)
+        warped_altas_seg_0[sum_warped_atlas_segs == 0] = 1.  # H x W x D x C ; label 0 map is now 1 where no label was present (which is where reg_resample padded with 0)
+        warped_altas_seg_0_nii = nib.Nifti1Image(warped_altas_seg_0, warped_altas_seg_0_nii.affine)
+        nib.save(warped_altas_seg_0_nii, warped_atlas_seg_l_paths[0])
+
+        sum_warped_atlas_segs[sum_warped_atlas_segs == 0] = 1  # Update the sum as well for normalization
+
+        # get probabilistic atlas by normalizing across label dimension
+        # additionally calculate the atlas mask (where background has the largest probability)
+        for l in range(num_class):
+            warped_altas_seg_l_nii = nib.load(warped_atlas_seg_l_paths[l])
+            warped_altas_seg_l = warped_altas_seg_l_nii.get_fdata().astype(np.float32)  # H x W x D; is smoothed
+            warped_altas_seg_normalized_l = warped_altas_seg_l / sum_warped_atlas_segs
+            warped_altas_seg_normalized_l_nii = nib.Nifti1Image(warped_altas_seg_normalized_l, atlas_seg_nii.affine)
+            nib.save(warped_altas_seg_normalized_l_nii, warped_atlas_seg_l_paths[l])
+
+            if l == 0:
+                warped_altas_seg_0 = warped_altas_seg_l
+                warped_atlas_seg_mask = np.zeros_like(warped_altas_seg_0)
+            else:
+                warped_atlas_seg_mask[warped_altas_seg_l > warped_altas_seg_0] = 1
+
+        return warped_atlas_seg_l_paths, warped_atlas_seg_mask

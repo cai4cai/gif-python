@@ -9,6 +9,8 @@ from tqdm import tqdm
 from src.multi_atlas.atlas_propagation import probabilistic_segmentation_prior
 from src.multi_atlas.utils import compute_disp_from_cpp
 from src.multi_atlas.multi_atlas_fusion_weights import log_heat_kernel_GIF
+from src.utils.definitions import RESAMPLE_METHOD
+
 
 from multiprocessing import Pool
 
@@ -38,6 +40,15 @@ def nibabel_load_and_get_fdata_and_weight(params):
     weights = params[1]
     return weights * nib.load(path).get_fdata()
 
+def select_label_from_labelmap_and_weight(params):
+    array = params[0]
+    weights = params[1]
+    label = params[2]
+
+    array_onehot_l = np.zeros_like(array)
+    array_onehot_l[array==label] = 1
+    return weights * array_onehot_l
+
 def calculate_warped_prob_segmentation(param_list):
     folder, save_folder, reuse_existing_pred, force_recompute_heat_kernels, img_nii, mask_nii, num_class, grid_spacing, be, le, lp, only_affine = param_list
     atlas_name = os.path.split(folder)[1]
@@ -62,6 +73,7 @@ def calculate_warped_prob_segmentation(param_list):
     ]
     to_not_remove_which_starts_with = [
         "atlas_seg_",
+        "warped_atlas_seg",
         "warped_atlas_seg_",
     ]
 
@@ -90,7 +102,7 @@ def calculate_warped_prob_segmentation(param_list):
         template_nii = nib.load(os.path.join(folder, 'srr.nii.gz'))
         template_mask_nii = nib.load(os.path.join(folder, 'mask.nii.gz'))
         template_seg_nii = nib.load(os.path.join(folder, 'parcellation.nii.gz'))
-        prob_warped_atlas_seg_l_paths, warped_atlas_seg_mask = probabilistic_segmentation_prior(
+        warped_atlas_path_or_prob_seg_l_paths, warped_atlas_seg_mask = probabilistic_segmentation_prior(
             image_nii=img_nii,
             mask_nii=mask_nii,
             template_nii=template_nii,
@@ -147,7 +159,7 @@ def calculate_warped_prob_segmentation(param_list):
             os.system('rm %s' % p)
     print(f"Cleaning completed after {time.time() - time_0_clean:.3f} seconds")
 
-    return prob_warped_atlas_seg_l_paths, heat_kernel_path
+    return warped_atlas_path_or_prob_seg_l_paths, heat_kernel_path
 
 def multi_atlas_segmentation(img_nii,
                              mask_nii,
@@ -205,15 +217,14 @@ def multi_atlas_segmentation(img_nii,
             result = calculate_warped_prob_segmentation(params)
             out.append(result)
 
-
-    proba_seg_path_list_a_l = [p[0] for p in out]
+    warped_atlas_path_list_or_proba_seg_path_list_a_l = [p[0] for p in out]
     log_heat_kernel_path_list = [p[1] for p in out]
 
 
     # Merging probabilities
     t_0_merge = time.time()
     MAX_NUM_VOX_IN_MEM = 8e9/4 # xGB/4bytes(float32)
-    num_atlases = len(proba_seg_path_list_a_l)
+    num_atlases = len(warped_atlas_path_list_or_proba_seg_path_list_a_l)
     block_edge_len = int(np.ceil(MAX_NUM_VOX_IN_MEM**(1/3)/num_atlases))
     # Merge the proba predictions
     print("Merging probabilities...")
@@ -241,17 +252,24 @@ def multi_atlas_segmentation(img_nii,
         print(f"Weights completed after {time.time() - t_0_weight:.3f} seconds")
 
         multi_atlas_proba_seg = np.zeros(tuple(weights.shape[1:]+(num_class,)))
-        proba_seg_path_list_l_a = list(map(list, zip(*proba_seg_path_list_a_l)))  # transpose the list of lists
 
-        print(f"Combining weights with probabilities...")
+        print(f"Apply weights to labels...")
         t_0_combprobs = time.time()
         with Pool(num_pools) as p:
-            for l, proba_seg_path_list_a in enumerate(proba_seg_path_list_l_a):
+            if RESAMPLE_METHOD == 0:
+                warped_atlases = np.array(p.map(nibabel_load_and_get_fdata, [warped_atlas_path_list_or_proba_seg_path_list_a_l[a] for a in range(num_atlases)]))  # num_atlases x H x W x D
+            elif RESAMPLE_METHOD == 1:
+                proba_seg_path_list_l_a = list(map(list, zip(*warped_atlas_path_list_or_proba_seg_path_list_a_l)))  # transpose the list of lists
+
+            for l in range(num_class):
                 print(l)
+                if RESAMPLE_METHOD == 0:
+                    weighted_proba_seg_a = p.map(select_label_from_labelmap_and_weight, [[warped_atlases[a], weights[a, :, :, :], l] for a in range(num_atlases)])
 
-                weighted_proba_seg_a = p.map(nibabel_load_and_get_fdata_and_weight, [[proba_seg_path_list_a[a], weights[a, :, :, :]] for a in range(num_atlases)])
+                elif RESAMPLE_METHOD == 1:
+                    proba_seg_path_list_a = proba_seg_path_list_l_a[l]
+                    weighted_proba_seg_a = p.map(nibabel_load_and_get_fdata_and_weight, [[proba_seg_path_list_a[a], weights[a, :, :, :]] for a in range(num_atlases)])
 
-                print(f"Loading and weighting of atlas probabilities for class {l} completed...")
 
                 weighted_proba_seg_a = np.array(weighted_proba_seg_a)  # num_atlas x H x W x D ; converts list of arrays to numpy array
                 weighted_proba_seg = np.sum(weighted_proba_seg_a, axis=0)  # H x W x D; final weighted sum for class l
