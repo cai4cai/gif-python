@@ -4,13 +4,16 @@ import time
 
 import numpy as np
 import nibabel as nib
+import pandas as pd
 from tqdm import tqdm
 
 from src.multi_atlas.atlas_propagation import probabilistic_segmentation_prior
 from src.multi_atlas.utils import compute_disp_from_cpp
+from src.multi_atlas.utils import structure_seg_from_tissue_seg
 from src.multi_atlas.multi_atlas_fusion_weights import log_heat_kernel_GIF
 from src.utils.definitions import RESAMPLE_METHOD, MULTIPROCESSING
 
+from ast import literal_eval
 
 from multiprocessing import Pool
 
@@ -217,7 +220,6 @@ def multi_atlas_segmentation(img_nii,
     warped_atlas_path_list_or_proba_seg_path_list_a_l = [p[0] for p in out]
     log_heat_kernel_path_list = [p[1] for p in out]
 
-
     # Merging probabilities
     t_0_merge = time.time()
     MAX_NUM_VOX_IN_MEM = 8e9/4 # xGB/4bytes(float32)
@@ -248,38 +250,68 @@ def multi_atlas_segmentation(img_nii,
 
         print(f"Weights completed after {time.time() - t_0_weight:.3f} seconds")
 
-        multi_atlas_proba_seg = np.zeros(tuple(weights.shape[1:]+(num_class,)))
+############################################################################################################
+        # Merge the proba predictions for tissue segmentation
+        tissue_info_csv_path = os.path.join(os.path.dirname(atlas_folder_list[0]), 'tissues_info.csv')
+        tissue_dict = pd.read_csv(tissue_info_csv_path, index_col="label").to_dict(orient='dict')
+
+        structure_info_csv_path = os.path.join(os.path.dirname(atlas_folder_list[0]), 'structures_info.csv')
+        structure_df = pd.read_csv(structure_info_csv_path, index_col="label", converters={'tissues': literal_eval})\
+
+        structure_dict = structure_df.to_dict(orient='dict')
+
+        num_tissue = len(tissue_dict['name'])
+        multi_atlas_proba_tissue_seg = np.zeros(tuple(weights.shape[1:] + (num_tissue,)))
+        multi_atlas_proba_seg = np.zeros(tuple(weights.shape[1:] + (num_class,)))
 
         print(f"Apply weights to labels...")
         t_0_combprobs = time.time()
         with Pool(num_pools) as p:
             if RESAMPLE_METHOD == 0:
-                warped_atlases = np.array(p.map(nibabel_load_and_get_fdata, [warped_atlas_path_list_or_proba_seg_path_list_a_l[a] for a in range(num_atlases)]))  # num_atlases x H x W x D
+                warped_atlases = np.array(p.map(nibabel_load_and_get_fdata,
+                                                [warped_atlas_path_list_or_proba_seg_path_list_a_l[a] for a in
+                                                 range(num_atlases)]))  # num_atlases x H x W x D
             elif RESAMPLE_METHOD == 1:
-                proba_seg_path_list_l_a = list(map(list, zip(*warped_atlas_path_list_or_proba_seg_path_list_a_l)))  # transpose the list of lists
+                proba_seg_path_list_l_a = list(
+                    map(list, zip(*warped_atlas_path_list_or_proba_seg_path_list_a_l)))  # transpose the list of lists
 
             for l in range(num_class):
                 print(l)
+                if not l in structure_dict['tissues']:
+                    print(f"Label {l} is not a in the structures_info.csv. Skip...")
+                    continue
+
                 if RESAMPLE_METHOD == 0:
-                    weighted_proba_seg_a = p.map(select_label_from_labelmap_and_weight, [[warped_atlases[a], weights[a, :, :, :], l] for a in range(num_atlases)])
+                    weighted_proba_seg_a = p.map(select_label_from_labelmap_and_weight,
+                                                 [[warped_atlases[a], weights[a, :, :, :], l] for a in
+                                                  range(num_atlases)])
 
                 elif RESAMPLE_METHOD == 1:
                     proba_seg_path_list_a = proba_seg_path_list_l_a[l]
-                    weighted_proba_seg_a = p.map(nibabel_load_and_get_fdata_and_weight, [[proba_seg_path_list_a[a], weights[a, :, :, :]] for a in range(num_atlases)])
-
+                    weighted_proba_seg_a = p.map(nibabel_load_and_get_fdata_and_weight,
+                                                 [[proba_seg_path_list_a[a], weights[a, :, :, :]] for a in
+                                                  range(num_atlases)])
 
                 weighted_proba_seg_a = np.array(weighted_proba_seg_a)  # num_atlas x H x W x D ; converts list of arrays to numpy array
+
+                # sum all probabilities that are part of the same tissue, while dividing probabilities by the number of tissues they are assigned to
                 weighted_proba_seg = np.sum(weighted_proba_seg_a, axis=0)  # H x W x D; final weighted sum for class l
 
-                multi_atlas_proba_seg[:, :, :, l] = weighted_proba_seg # H x W x D x num_classes
+
+                assigned_tissues = structure_dict['tissues'][l]
+                for t in assigned_tissues:
+                    multi_atlas_proba_tissue_seg[:, :, :, t] += weighted_proba_seg / len(assigned_tissues) # H x W x D x num_tissue
+
+                multi_atlas_proba_seg[:, :, :, l] = weighted_proba_seg  # H x W x D x num_classes
+
+        # Convert to labelmap and save
+        multi_atlas_tissue_seg = np.argmax(multi_atlas_proba_tissue_seg, axis=-1).astype(np.uint8)
+        multi_atlas_tissue_seg_nii = nib.Nifti1Image(multi_atlas_tissue_seg, affine=img_nii.affine)
+        nib.save(multi_atlas_tissue_seg_nii, os.path.join(save_folder, f"multi_atlas_tissue_seg_prior.nii.gz"))
+
+        # get the label with the maximum probability according to multi_atlas_proba_seg under the condition that one of the assigned tissues corresponds to the tissue in multi_atlas_tissue_seg
+        final_parcellation = structure_seg_from_tissue_seg(multi_atlas_tissue_seg, multi_atlas_proba_seg, structure_dict['tissues'])
 
         print(f"Combining weights with probabilities completed after {time.time() - t_0_combprobs:.3f} seconds")
 
-    else:  # Vanilla average
-        multi_atlas_proba_seg = np.mean(np.stack([nib.load(f).get_fdata() for f in proba_seg_path_list_a_l], axis=0), axis=0)
-
-    t_end = time.time()
-    print(f"Merging completed after {t_end - t_0_merge:.3f} seconds")
-
-    print(f"Multi-Atlas segmentation completed after {time.time() - time_0:.3f} seconds")
-    return multi_atlas_proba_seg
+        return final_parcellation

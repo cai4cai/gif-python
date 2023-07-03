@@ -74,3 +74,54 @@ def get_atlas_list(ga, condition, ga_delta_max=1):
                 print('%s not found.' % template_chinese_path)
 
     return atlas_list
+
+
+def structure_seg_from_tissue_seg(tiss_seg, lab_probs, tissue_dict):
+    """
+    Assigns a label to each voxel in tiss_seg based on the highest probability in lab_probs, and the tissue_dict.
+    :param tiss_seg: tissue segmentation, shape (x, y, z)
+    :param lab_probs: label probabilities, shape (x, y, z, num_labels)
+    :param tissue_dict: dictionary mapping labels to tissues, e.g. {0: [0, 1], 1: [2, 3], 2: [4, 5]}
+    :return: structure segmentation, shape (x, y, z)
+    """
+    lab_probs_idx_sorted = np.flip(lab_probs.argsort(axis=-1), axis=-1)  # flip to get descending sort order
+    num_labels = lab_probs_idx_sorted.shape[-1]
+    num_tissues = np.max(tiss_seg) + 1
+
+    # reverse tissue_dict by creating a dictionary with tissues as keys and lists of structures as values
+    tissue_dict_rev = {}
+    for l in tissue_dict:
+        assigned_tissues = tissue_dict[l]
+        for t in assigned_tissues:
+            if t in tissue_dict_rev.keys():
+                tissue_dict_rev[t].append(l)
+            else:
+                tissue_dict_rev[t] = [l]
+
+    # convert tissue seg to one-hot encoding
+    tiss_seg_onehot = np.zeros((*tiss_seg.shape, num_tissues), dtype=bool)
+    for t in range(num_tissues):
+        tiss_seg_onehot[..., t][tiss_seg == t] = 1
+
+
+    # fill the structure segmentation:
+    # start with the label of highest probability, and check if it maps to the correct tissue according to tissue_dict
+    # and tiss_seg, if so, adopt this label, if not, check the next highest label, and so on until structure_seg is filled
+    # (i.e. no more -1 values)
+    structure_seg = np.ones_like(tiss_seg) * -1
+    i = 0
+    while np.any(structure_seg == -1) and i < num_labels:
+        #print(i)
+        mask1 = structure_seg == -1  # only consider locations that have not been assigned yet
+        for t in tissue_dict_rev:
+            mask2 = np.isin(lab_probs_idx_sorted[..., i], tissue_dict_rev[t]) # select locations where the ith-highest label maps to the current tissue
+            mask3 = tiss_seg_onehot[..., t]  # select locations where the tissue segmentation corresponds to the current tissue
+
+            mask = mask1 * mask2 * mask3 # locations for which all conditions are True
+
+            lab_idx_curr = lab_probs_idx_sorted[..., i]  # map of the ith-highest labels
+            structure_seg[mask] = lab_idx_curr[mask]  # copy values for the masked values
+
+        i += 1
+
+    return structure_seg
