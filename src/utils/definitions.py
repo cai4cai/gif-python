@@ -81,6 +81,7 @@ NIFTYREG_PATH = os.path.join(
     WORKSPACE_FOLDER, 'trustworthy-ai-fetal-brain-segmentation',
     'docker', 'third-party', 'niftyreg', 'build', 'reg-apps',
 )
+NIFTYSEG_PATH = "/usr/local/bin"
 
 
 # ATLAS FOLDERS

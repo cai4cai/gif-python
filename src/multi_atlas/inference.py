@@ -1,5 +1,6 @@
 import cProfile
 import os
+import subprocess
 import time
 
 import numpy as np
@@ -11,7 +12,7 @@ from src.multi_atlas.atlas_propagation import probabilistic_segmentation_prior
 from src.multi_atlas.utils import compute_disp_from_cpp
 from src.multi_atlas.utils import structure_seg_from_tissue_seg
 from src.multi_atlas.multi_atlas_fusion_weights import log_heat_kernel_GIF
-from src.utils.definitions import RESAMPLE_METHOD, MULTIPROCESSING
+from src.utils.definitions import RESAMPLE_METHOD, MULTIPROCESSING, NIFTYSEG_PATH
 
 from ast import literal_eval
 
@@ -161,8 +162,8 @@ def calculate_warped_prob_segmentation(param_list):
 
     return warped_atlas_path_or_prob_seg_l_paths, heat_kernel_path
 
-def multi_atlas_segmentation(img_nii,
-                             mask_nii,
+def multi_atlas_segmentation(img_path,
+                             mask_path,
                              atlas_folder_list,
                              num_class,
                              grid_spacing,
@@ -176,12 +177,13 @@ def multi_atlas_segmentation(img_nii,
                              force_recompute_heat_kernels=False
                              ):
 
-    '''
-    Args:
-        img_nii: image to segment
-        mask_nii: registration mask
-        atlas_folder_list:
-    '''
+    """
+    Multi-atlas segmentation using the GIF-like fusion method.
+    :param img_path: Path to the input image
+    :param mask_path: Path to the input mask
+    :param atlas_folder_list: List of paths to the atlas folders
+    :param num_class: Number of classes
+    """
     assert merging_method in SUPPORTED_MERGING_METHOD, \
         "Merging method %s not supported. Only %s supported." % (merging_method, str(SUPPORTED_MERGING_METHOD))
     time_0 = time.time()
@@ -189,8 +191,10 @@ def multi_atlas_segmentation(img_nii,
     if not os.path.exists(save_folder):
         os.mkdir(save_folder)
 
-    # Register the atlas segmentations to the input image
+    img_nii = nib.load(img_path)
+    mask_nii = nib.load(mask_path)
 
+    # Register the atlas segmentations to the input image
     param_lists = [[folder,
                     save_folder,
                     reuse_existing_pred,
@@ -261,8 +265,8 @@ def multi_atlas_segmentation(img_nii,
         structure_dict = structure_df.to_dict(orient='dict')
 
         num_tissue = len(tissue_dict['name'])
-        multi_atlas_proba_tissue_seg = np.zeros(tuple(weights.shape[1:] + (num_tissue,)))
-        multi_atlas_proba_seg = np.zeros(tuple(weights.shape[1:] + (num_class,)))
+        multi_atlas_tissue_prior = np.zeros(tuple(weights.shape[1:] + (num_tissue,)))
+        multi_atlas_proba_seg = np.zeros(tuple(weights.shape[1:] + (num_class,)), dtype=np.float32)
 
         print(f"Apply weights to labels...")
         t_0_combprobs = time.time()
@@ -275,10 +279,9 @@ def multi_atlas_segmentation(img_nii,
                 proba_seg_path_list_l_a = list(
                     map(list, zip(*warped_atlas_path_list_or_proba_seg_path_list_a_l)))  # transpose the list of lists
 
-            for l in range(num_class):
-                print(l)
+            for l in tqdm(range(num_class)):
                 if not l in structure_dict['tissues']:
-                    print(f"Label {l} is not a in the structures_info.csv. Skip...")
+                    print(f"Label {l} is not present in the structures_info.csv. Assign zero probability...")
                     continue
 
                 if RESAMPLE_METHOD == 0:
@@ -300,18 +303,54 @@ def multi_atlas_segmentation(img_nii,
 
                 assigned_tissues = structure_dict['tissues'][l]
                 for t in assigned_tissues:
-                    multi_atlas_proba_tissue_seg[:, :, :, t] += weighted_proba_seg / len(assigned_tissues) # H x W x D x num_tissue
+                    multi_atlas_tissue_prior[:, :, :, t] += weighted_proba_seg / len(assigned_tissues) # H x W x D x num_tissue
 
                 multi_atlas_proba_seg[:, :, :, l] = weighted_proba_seg  # H x W x D x num_classes
 
-        # Convert to labelmap and save
-        multi_atlas_tissue_seg = np.argmax(multi_atlas_proba_tissue_seg, axis=-1).astype(np.uint8)
-        multi_atlas_tissue_seg_nii = nib.Nifti1Image(multi_atlas_tissue_seg, affine=img_nii.affine)
-        nib.save(multi_atlas_tissue_seg_nii, os.path.join(save_folder, f"multi_atlas_tissue_seg_prior.nii.gz"))
+        # Convert to tissue labelmap and save
+        multi_atlas_tissue_prior_nii = nib.Nifti1Image(multi_atlas_tissue_prior, affine=img_nii.affine)
+        nib.save(multi_atlas_tissue_prior_nii, os.path.join(save_folder, f"multi_atlas_tissue_prior.nii.gz"))
 
-        # get the label with the maximum probability according to multi_atlas_proba_seg under the condition that one of the assigned tissues corresponds to the tissue in multi_atlas_tissue_seg
+        # run seg_EM algorithm to get final tissue segmentation
+        # Define file paths
+        seg_EM_input_filename = img_path
+        seg_EM_output_filename = os.path.join(save_folder, f"multi_atlas_tissue_seg.nii.gz")
+        seg_EM_mask_filename = mask_path
+        seg_EM_prior_filename = os.path.join(save_folder, f"multi_atlas_tissue_prior.nii.gz")
+        seg_EM_n_priors = 1
+
+        # Define other input options
+        seg_EM_verbose_level = 0
+        seg_EM_max_iterations = 30
+        seg_EM_min_iterations = 3
+        seg_EM_bias_field_order = 5
+        seg_EM_bias_field_thresh = 0.05
+        seg_EM_mrf_beta = 0.1
+
+        command = [os.path.join(NIFTYSEG_PATH, 'seg_EM'),
+                    '-in', seg_EM_input_filename,
+                    '-out', seg_EM_output_filename,
+                    '-mask', seg_EM_mask_filename,
+                    '-priors4D', seg_EM_prior_filename,
+                    '-v', str(seg_EM_verbose_level),
+                    '-max_iter', str(seg_EM_max_iterations),
+                    '-min_iter', str(seg_EM_min_iterations),
+                    '-bc_order', str(seg_EM_bias_field_order),
+                    '-bc_thresh', str(seg_EM_bias_field_thresh),
+                    '-mrf_beta', str(seg_EM_mrf_beta)]
+
+        # Run the command
+        subprocess.call(command)
+
+        multi_atlas_tissue_seg = np.argmax(nib.load(seg_EM_output_filename).get_fdata(), axis=-1).astype(np.uint8)
+
+        # get the label with the maximum probability according to multi_atlas_proba_seg under the condition that one of
+        # the assigned tissues corresponds to the tissue in multi_atlas_tissue_seg
         final_parcellation = structure_seg_from_tissue_seg(multi_atlas_tissue_seg, multi_atlas_proba_seg, structure_dict['tissues'])
 
-        print(f"Combining weights with probabilities completed after {time.time() - t_0_combprobs:.3f} seconds")
+        print(f"\nCombining weights with probabilities completed after {time.time() - t_0_combprobs:.3f} seconds")
+
+        predicted_segmentation_nii = nib.Nifti1Image(final_parcellation, img_nii.affine)
+        nib.save(predicted_segmentation_nii, os.path.join(save_folder, "predicted_segmentation.nii.gz"))
 
         return final_parcellation
