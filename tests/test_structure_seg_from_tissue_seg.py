@@ -3,40 +3,33 @@ import timeit
 from src.multi_atlas.utils import structure_seg_from_tissue_seg
 import unittest
 
-# tiss_seg = np.array([[[1, 0], [3, 3]], [[2, 2], [3, 3]]]).transpose(2, 1, 0)
-# print(tiss_seg.shape)
-#
-# lab_probs = np.array([[[[.4, .6], [.2, .4]], [[.4, .6], [.2, .4]]], [[[.3, .2], [.5, .1]], [[.3, .2], [.5, .1]]], [[[.3, .2], [.3, .5]], [[.3, .2], [.3, .5]]]] ).transpose(3, 2, 1, 0)
-# print(lab_probs.shape)
+FIXED_INPUT = False
 
-#tissue_dict = {0: [0], 1: [1, 2, 3], 2: [3], 3:[3]}
+if FIXED_INPUT:
+    tiss_seg = np.array([[[1, 0], [3, 3]], [[2, 2], [3, 3]]]).transpose(2, 1, 0)
+    lab_probs = np.array([[[[.4, .6], [.2, .4]], [[.4, .6], [.2, .4]]], [[[.3, .2], [.5, .1]], [[.3, .2], [.5, .1]]], [[[.3, .2], [.3, .5]], [[.3, .2], [.3, .5]]]] ).transpose(3, 2, 1, 0)
+    tissue_dict = {0: [0], 1: [1, 2, 3], 2: [3], 3:[3]}
 
-size = np.array([20, 20, 10])
-nb_structures = 16
-nb_tissues = 7
-tiss_seg = np.random.randint(0, nb_tissues+1, size=size, dtype=np.uint8)
+else:
+    size = np.array([20, 20, 10])
+    nb_structures = 16
+    nb_tissues = 7
+    tiss_seg = np.random.randint(0, nb_tissues+1, size=size, dtype=np.uint8)
+    lab_probs = np.random.rand(*size, nb_structures)
+    # make sure lab_probs sums to 1 along last dimension
+    lab_probs = lab_probs / np.sum(lab_probs, axis=-1, keepdims=True)
+
+    # create random tissue_dict which assignes each label to a random subset of at most 5 tissues
+    tissue_dict = {}
+    for l in range(nb_structures):
+        tissue_dict[l] = np.random.choice(nb_tissues, size=np.random.randint(1, 5), replace=False)
+
 print(tiss_seg.shape)
-
-lab_probs = np.random.rand(*size, nb_structures)
-# make sure lab_probs sums to 1 along last dimension
-lab_probs = lab_probs / np.sum(lab_probs, axis=-1, keepdims=True)
-
 print(lab_probs.shape)
 
-# check that values add up to 1 along label dimension
-#assert(np.sum(lab_probs, axis=-1)==1).all(), "Probabilities do not sum to 1 along label dimension, but instead to {}".format(np.sum(lab_probs, axis=-1))
 
 # check that values add up to 1 along label dimension, allowing for small numerical errors
 assert(np.sum(lab_probs, axis=-1) - 1 < 1e-6).all(), "Probabilities do not sum to 1 along label dimension, but instead to {}".format(np.sum(lab_probs, axis=-1))
-
-
-# create random tissue_dict which assignes each label to a random subset of at most 5 tissues
-tissue_dict = {}
-for l in range(nb_structures):
-    tissue_dict[l] = np.random.choice(nb_tissues, size=np.random.randint(1, 5), replace=False)
-
-#print(tissue_dict)
-
 
 ## compare with nested loop method
 def nested_loop_method(tiss_seg, lab_probs, tissue_dict):
