@@ -1,8 +1,6 @@
 import os
 
 from src.multi_atlas.inference import multi_atlas_segmentation
-import nibabel as nib
-import numpy as np
 from src.utils.definitions import BE, LE, LP, GRID_SPACING
 from glob import glob
 

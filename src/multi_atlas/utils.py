@@ -1,8 +1,9 @@
 import os
+import subprocess
+
 import numpy as np
 import nibabel as nib
-from src.utils.definitions import NIFTYREG_PATH, ATLAS_SB, ATLAS_CONTROL_HARVARD, ATLAS_CONTROL_CHINESE, CONDITIONS
-
+from src.utils.definitions import NIFTYREG_PATH, NIFTYSEG_PATH, ATLAS_SB, ATLAS_CONTROL_HARVARD, ATLAS_CONTROL_CHINESE, CONDITIONS
 
 def compute_disp_from_cpp(cpp_path, ref_path, save_disp_path):
     save_folder = os.path.split(save_disp_path)[0]
@@ -125,3 +126,25 @@ def structure_seg_from_tissue_seg(tiss_seg, lab_probs, tissue_dict):
         i += 1
 
     return structure_seg
+
+
+def seg_EM(input_filename, output_filename, mask_filename, prior_filename, verbose_level, max_iterations,
+           min_iterations, bias_field_order, bias_field_thresh, mrf_beta):
+    """
+    Performs EM segmentation on the atlas using niftyseg.
+    """
+
+    command = [os.path.join(NIFTYSEG_PATH, 'seg_EM'),
+               '-in', input_filename,
+               '-out', output_filename,
+               '-mask', mask_filename,
+               '-priors4D', prior_filename,
+               '-v', str(verbose_level),
+               '-max_iter', str(max_iterations),
+               '-min_iter', str(min_iterations),
+               '-bc_order', str(bias_field_order),
+               '-bc_thresh', str(bias_field_thresh),
+               '-mrf_beta', str(mrf_beta)]
+
+    # Run the command
+    subprocess.call(command)
