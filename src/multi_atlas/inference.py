@@ -31,6 +31,11 @@ def _weights_from_log_heat_kernels(log_heat_kernels):
 def nibabel_load_and_get_fdata(filepath):
     return nib.load(filepath).get_fdata()
 
+def nibabel_load_and_get_fdata_as_uint8(filepath):
+    print(f"Loading {filepath}")
+    out = nib.load(filepath).get_fdata().astype(np.uint8)
+    print(f"Loaded {filepath}")
+    return out
 
 def nibabel_load_and_get_fdata_and_weight(params):
     path = params[0]
@@ -266,7 +271,7 @@ def multi_atlas_segmentation(img_path,
     t_0_combprobs = time.time()
     with Pool(num_pools) as p:
         if RESAMPLE_METHOD == 0:
-            warped_atlases = np.array(p.map(nibabel_load_and_get_fdata,
+            warped_atlases = np.array(p.map(nibabel_load_and_get_fdata_as_uint8,
                                             [warped_atlas_path_list_or_proba_seg_path_list_a_l[a] for a in
                                              range(num_atlases)]))  # num_atlases x H x W x D
         elif RESAMPLE_METHOD == 1:
