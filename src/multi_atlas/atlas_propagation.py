@@ -118,10 +118,10 @@ def _register_atlas_to_img(image_nii, mask_nii,
     # Prepare the volumes to register
     img_path = os.path.join(save_folder, 'img.nii.gz')
     mask_path = os.path.join(save_folder, 'mask.nii.gz')
-    atlas_img_seg_path = os.path.join(save_folder, 'atlas_img.nii.gz')
+    atlas_img_path = os.path.join(save_folder, 'atlas_img.nii.gz')
     atlas_mask_path = os.path.join(save_folder, 'atlas_mask.nii.gz')
     save_nifti(image_nii.get_fdata(), image_nii.affine, img_path)
-    save_nifti(atlas_nii.get_fdata(), atlas_nii.affine, atlas_img_seg_path)
+    save_nifti(atlas_nii.get_fdata(), atlas_nii.affine, atlas_img_path)
     save_nifti(
         mask_nii.get_fdata().astype(np.uint8),
         mask_nii.affine,
@@ -141,7 +141,7 @@ def _register_atlas_to_img(image_nii, mask_nii,
             f'{NIFTYREG_PATH}/reg_aladin '
             f'-ref "{img_path}" '
             f'-rmask "{mask_path}" '
-            f'-flo "{atlas_img_seg_path}" '
+            f'-flo "{atlas_img_path}" '
             f'-fmask "{atlas_mask_path}" '
             f'-res "{affine_res_path}" '
             f'-aff "{affine_path}" '
@@ -149,39 +149,39 @@ def _register_atlas_to_img(image_nii, mask_nii,
         )
         os.system(affine_reg_cmd)
 
-        # Warp the atlas image (because the output of reg_aladin is masked)
-        affine_warp_cmd = (
-            f'{NIFTYREG_PATH}/reg_resample '
-            f'-ref "{img_path}" '
-            f'-flo "{atlas_img_seg_path}" '
-            f'-trans "{affine_path}" '
-            f'-res "{affine_res_path}" '
-            f'-inter 1 '
-            f'-voff '
-            f'-omp {OMP}'
-        )
-        os.system(affine_warp_cmd)
-
-        # Warp the atlas mask
-        affine_res_mask_path = os.path.join(save_folder, 'affine_warped_atlas_mask.nii.gz')
-        affine_warp_mask_cmd = (
-            f'{NIFTYREG_PATH}/reg_resample '
-            f'-ref "{img_path}" '
-            f'-flo "{atlas_mask_path}" '
-            f'-trans "{affine_path}" '
-            f'-res "{affine_res_mask_path}" '
-            f'-inter 0 '
-            f'-voff '
-            f'-omp {OMP}'
-        )
-        os.system(affine_warp_mask_cmd)
+        # # Warp the atlas image (because the output of reg_aladin is masked)
+        # affine_warp_cmd = (
+        #     f'{NIFTYREG_PATH}/reg_resample '
+        #     f'-ref "{img_path}" '
+        #     f'-flo "{atlas_img_path}" '
+        #     f'-trans "{affine_path}" '
+        #     f'-res "{affine_res_path}" '
+        #     f'-inter 1 '
+        #     f'-voff '
+        #     f'-omp {OMP}'
+        # )
+        # os.system(affine_warp_cmd)
+        #
+        # # Warp the atlas mask
+        # affine_res_mask_path = os.path.join(save_folder, 'affine_warped_atlas_mask.nii.gz')
+        # affine_warp_mask_cmd = (
+        #     f'{NIFTYREG_PATH}/reg_resample '
+        #     f'-ref "{img_path}" '
+        #     f'-flo "{atlas_mask_path}" '
+        #     f'-trans "{affine_path}" '
+        #     f'-res "{affine_res_mask_path}" '
+        #     f'-inter 0 '
+        #     f'-voff '
+        #     f'-omp {OMP}'
+        # )
+        # os.system(affine_warp_mask_cmd)
 
         if affine_only:
             return affine_path, None
 
     else:  # no affine transformation
         affine_path = None
-        affine_res_path = atlas_img_seg_path
+        affine_res_path = atlas_img_path
         affine_res_mask_path = atlas_mask_path
 
     # Registration
@@ -201,8 +201,9 @@ def _register_atlas_to_img(image_nii, mask_nii,
         f'{NIFTYREG_PATH}/reg_f3d '
         f'-ref "{img_path}" '
         f'-rmask "{mask_path}" '
-        f'-flo "{affine_res_path}" '
-        f'-fmask "{affine_res_mask_path}" '
+        f'-flo "{atlas_img_path}" '
+        f'-fmask "{atlas_mask_path}" '
+        f'-aff "{affine_path}" '
         f'-res "{res_path}" '
         f'-cpp "{cpp_path}" '
         f'{reg_options} '
@@ -224,22 +225,6 @@ def _propagate_labels(num_class, atlas_seg_nii, image_nii, aff_path, cpp_path, s
     image_path = os.path.join(tmp_folder, 'img.nii.gz')
     nib.save(image_nii, image_path)
 
-    combine_transforms = True if (aff_path is not None and cpp_path is not None) else False
-
-    # combine input transforms
-    if combine_transforms:
-        # combine affine and non-linear transform
-        comb_tfm_path = os.path.join(os.path.dirname(cpp_path), 'combined_transform.nii.gz')
-        cmd = (
-            f'{NIFTYREG_PATH}/reg_transform '
-            f'-comp "{cpp_path}" '
-            f'"{aff_path}" '
-            f'"{comb_tfm_path}" '
-            f'-ref "{image_path}" '
-            f'-omp {OMP}'
-        )
-        os.system(cmd)
-
     # Smooth labels and save them separately
     atlas_seg = atlas_seg_nii.get_fdata().astype(np.uint8)
 
@@ -256,58 +241,18 @@ def _propagate_labels(num_class, atlas_seg_nii, image_nii, aff_path, cpp_path, s
         warped_atlas_seg_path = os.path.join(save_folder, f"warped_atlas_seg.nii.gz")
 
         # Warp the atlas seg using reg_resample and save the warped file
-        if combine_transforms:
-            # Warp the atlas seg given a pre-computed transformation (vel) and save it
-            cmd = (
-                f'{NIFTYREG_PATH}/reg_resample '
-                f'-ref "{image_path}" '
-                f'-flo "{atlas_seg_path}" '
-                f'-trans "{comb_tfm_path}" '
-                f'-res "{warped_atlas_seg_path}" '
-                f'-inter 0 '
-                f'-voff '
-                f'-omp {OMP}'
-            )
-
-            os.system(cmd)
-        else:
-            # Affine deformation of the atlas segmentation
-            if aff_path is not None:
-                if cpp_path is not None:
-                    aff_warped_atlas_seg_path = os.path.join(save_folder,
-                                                             "aff_warped_atlas_seg.nii.gz")  # intermediate output of affine transform
-                else:
-                    aff_warped_atlas_seg_path = warped_atlas_seg_path  # write directly to final warped file
-
-                cmd = (
-                    f'{NIFTYREG_PATH}/reg_resample '
-                    f'-ref "{image_path}" '
-                    f'-flo "{atlas_seg_path}" '
-                    f'-trans "{aff_path}" '
-                    f'-res "{aff_warped_atlas_seg_path}" '
-                    f'-inter 0 '
-                    f'-voff '
-                    f'-omp {OMP}'
-                )
-
-                os.system(cmd)
-            else:
-                aff_warped_atlas_seg_path = atlas_seg_path
-
-            if cpp_path is not None:
-                # Warp the atlas seg given a pre-computed transformation (vel) and save it
-                cmd = (
-                    f'{NIFTYREG_PATH}/reg_resample '
-                    f'-ref "{image_path}" '
-                    f'-flo "{aff_warped_atlas_seg_path}" '
-                    f'-trans "{cpp_path}" '
-                    f'-res "{warped_atlas_seg_path}" '
-                    f'-inter 0 '
-                    f'-voff '
-                    f'-omp {OMP}'
-                )
-
-                os.system(cmd)
+        # Warp the atlas seg given a pre-computed transformation (vel) and save it
+        cmd = (
+            f'{NIFTYREG_PATH}/reg_resample '
+            f'-ref "{image_path}" '
+            f'-flo "{atlas_seg_path}" '
+            f'-trans "{cpp_path}" '
+            f'-res "{warped_atlas_seg_path}" '
+            f'-inter 0 '
+            f'-voff '
+            f'-omp {OMP}'
+        )
+        os.system(cmd)
 
         # Load the warped atlas seg volume
         warped_atlas_seg_nii = nib.load(warped_atlas_seg_path)
@@ -339,59 +284,19 @@ def _propagate_labels(num_class, atlas_seg_nii, image_nii, aff_path, cpp_path, s
             # where should reg_resample save the warped files
             warped_atlas_seg_l_path = warped_atlas_seg_l_paths[l]
 
-            if combine_transforms:
-                # Warp the atlas seg given a pre-computed transformation (vel) and save it
-                cmd = (
-                    f'{NIFTYREG_PATH}/reg_resample '
-                    f'-ref "{image_path}" '
-                    f'-flo "{atlas_seg_l_path}" '
-                    f'-trans "{comb_tfm_path}" '
-                    f'-res "{warped_atlas_seg_l_path}" '
-                    f'-inter 1 '
-                    f'-voff '
-                    f'-omp {OMP}'
-                )
 
-                os.system(cmd)
-
-            else:
-                # Affine deformation of the atlas segmentation
-                if aff_path is not None:
-                    if cpp_path is not None:
-                        aff_warped_atlas_seg_l_path = os.path.join(save_folder, f"aff_warped_atlas_seg_{l}.nii.gz")  # intermediate output of affine transform
-                    else:
-                        aff_warped_atlas_seg_l_path = warped_atlas_seg_l_path  # write directly to final warped file
-
-                    cmd = (
-                        f'{NIFTYREG_PATH}/reg_resample '
-                        f'-ref "{image_path}" '
-                        f'-flo "{atlas_seg_l_path}" '
-                        f'-trans "{aff_path}" '
-                        f'-res "{aff_warped_atlas_seg_l_path}" '
-                        f'-inter 1 '
-                        f'-voff '
-                        f'-omp {OMP}'
-                    )
-
-                    os.system(cmd)
-                else:
-                    aff_warped_atlas_seg_l_path = atlas_seg_l_path
-
-                if cpp_path is not None:
-                    # Warp the atlas seg given a pre-computed transformation (vel) and save it
-                    cmd = (
-                        f'{NIFTYREG_PATH}/reg_resample '
-                        f'-ref "{image_path}" '
-                        f'-flo "{aff_warped_atlas_seg_l_path}" '
-                        f'-trans "{cpp_path}" '
-                        f'-res "{warped_atlas_seg_l_path}" '
-                        f'-inter 1 '
-                        f'-voff '
-                        f'-omp {OMP}'
-                    )
-
-                    os.system(cmd)
-
+            # Warp the atlas seg given a pre-computed transformation (vel) and save it
+            cmd = (
+                f'{NIFTYREG_PATH}/reg_resample '
+                f'-ref "{image_path}" '
+                f'-flo "{atlas_seg_l_path}" '
+                f'-trans "{cpp_path}" '
+                f'-res "{warped_atlas_seg_l_path}" '
+                f'-inter 1 '
+                f'-voff '
+                f'-omp {OMP}'
+            )
+            os.system(cmd)
 
         sum_warped_atlas_segs = None
         for l in range(num_class):
