@@ -212,7 +212,7 @@ def _register_atlas_to_img(image_nii, mask_nii,
         f'-omp {OMP} '
         f'-res "{res_path}" '  # Filename of the resampled image
         f'-cpp "{cpp_path}" '  # Filename of control point grid [outputCPP.nii]
-        #f'-voff'
+        f'-voff'
     )
 
     # print('Non linear registration command line:')
