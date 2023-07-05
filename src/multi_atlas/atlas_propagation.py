@@ -33,16 +33,16 @@ def probabilistic_segmentation_prior(image_nii, mask_nii,
     if not os.path.exists(save_folder_path):
         os.mkdir(save_folder_path)
 
-    # Mask the image
-    masked_image_nii = _mask_image(
-        image_nii=image_nii,
-        mask_nii=mask_nii,
-        num_dilation=mask_dilation
-    )
+    # # Mask the image
+    # masked_image_nii = _mask_image(
+    #     image_nii=image_nii,
+    #     mask_nii=mask_nii,
+    #     num_dilation=mask_dilation
+    # )
 
     # Register the template to the image
     affine_params_path, cpp_params_path = _register_atlas_to_img(
-        image_nii=masked_image_nii,
+        image_nii=image_nii,
         mask_nii=mask_nii,
         atlas_nii=template_nii,
         atlas_mask_nii=template_mask_nii,
@@ -60,7 +60,7 @@ def probabilistic_segmentation_prior(image_nii, mask_nii,
     warped_atlas_path_or_prob_seg_l_paths, warped_atlas_seg_mask = _propagate_labels(
         num_class=num_class,
         atlas_seg_nii=template_seg_nii,
-        image_nii=masked_image_nii,
+        image_nii=image_nii,
         aff_path=affine_params_path,  # will be None if use_affine == False
         cpp_path=cpp_params_path,
         save_folder=save_folder_path,
@@ -148,6 +148,19 @@ def _register_atlas_to_img(image_nii, mask_nii,
             f'-comm -voff -omp {OMP}'
         )
         os.system(affine_reg_cmd)
+
+        # Warp the atlas image (because the output of reg_aladin is masked)
+        affine_warp_cmd = (
+            f'{NIFTYREG_PATH}/reg_resample '
+            f'-ref "{img_path}" '
+            f'-flo "{atlas_img_seg_path}" '
+            f'-trans "{affine_path}" '
+            f'-res "{affine_res_path}" '
+            f'-inter 1 '
+            f'-voff '
+            f'-omp {OMP}'
+        )
+        os.system(affine_warp_cmd)
 
         # Warp the atlas mask
         affine_res_mask_path = os.path.join(save_folder, 'affine_warped_atlas_mask.nii.gz')
