@@ -185,7 +185,7 @@ def _propagate_labels(num_class, atlas_seg_nii, image_nii, aff_path, cpp_path, s
         # combine affine and non-linear transform
         comb_tfm_path = os.path.join(os.path.dirname(cpp_path), 'combined_transform.nii.gz')
         cmd = '%s/reg_transform -comp "%s" "%s" "%s" -ref "%s" -omp %s' % \
-              (NIFTYREG_PATH, aff_path, cpp_path, comb_tfm_path, image_path, OMP)
+              (NIFTYREG_PATH, cpp_path, aff_path, comb_tfm_path, image_path, OMP)
         os.system(cmd)
 
     # Smooth labels and save them separately
