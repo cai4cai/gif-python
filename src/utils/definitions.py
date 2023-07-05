@@ -2,8 +2,8 @@ import os
 
 # REGISTRATION HYPER-PARAMETERS
 GRID_SPACING = 4  # in mm (default is 4 mm = 5 voxels x 0.8 mm.voxels**(-1))
-BE = 0.1
-LE = 0.3
+BE = 0.005
+LE = 0.001  # Weight of first order penalty term (symmetric and anti-symmetric part of the Jacobian)
 LP = 3  # default 3; we do only the lp first level of the pyramid
 
 # RESAMPLING

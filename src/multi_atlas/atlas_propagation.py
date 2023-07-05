@@ -145,8 +145,13 @@ def _register_atlas_to_img(image_nii, mask_nii,
             f'-fmask "{atlas_mask_path}" '
             f'-res "{affine_res_path}" '
             f'-aff "{affine_path}" '
-            f'-comm -voff -omp {OMP}'
+            f'-comm '
+            f'-voff '
+            f'-omp {OMP} '
+            f'-lp 2 '
+            f'-speeeeed '
         )
+        print(affine_reg_cmd)
         os.system(affine_reg_cmd)
 
         # # Warp the atlas image (because the output of reg_aladin is masked)
@@ -185,29 +190,29 @@ def _register_atlas_to_img(image_nii, mask_nii,
         affine_res_mask_path = atlas_mask_path
 
     # Registration
-    reg_loss_options = '-lncc 0 6'
     res_path = warped_atlas_img_path
     cpp_path = os.path.join(save_folder, 'cpp.nii.gz')
     reg_options = (
-        f'-be {be} '
-        f'-le {le} '
-        f'-sx {grid_spacing} '
-        f'-ln 3 '
-        f'-lp {lp} '
-        f'{reg_loss_options} '
-        f'-voff'
+        f'-jl 0.0001 '  # Weight of log of the Jacobian determinant penalty term
+        f'-be 0.005 '  # Weight of the bending energy (second derivative of the transformation) penalty term  
+        f'-maxit 250 '  # Maximum number of iterations
+        f'-ln 4 '  # Number of level to perform
+        f'-lp 3 '  # Only perform the first levels [ln]
+        f'-sx -5.0 '  # Final grid spacing in the x direction, adopted in y and z directions if not specified
+        f'-lncc 0 5.0 '
     )
     reg_cmd = (
         f'{NIFTYREG_PATH}/reg_f3d '
         f'-ref "{img_path}" '
-        f'-rmask "{mask_path}" '
         f'-flo "{atlas_img_path}" '
+        f'-rmask "{mask_path}" '
         f'-fmask "{atlas_mask_path}" '
         f'-aff "{affine_path}" '
-        f'-res "{res_path}" '
-        f'-cpp "{cpp_path}" '
         f'{reg_options} '
-        f'-omp {OMP}'
+        f'-omp {OMP} '
+        f'-res "{res_path}" '  # Filename of the resampled image
+        f'-cpp "{cpp_path}" '  # Filename of control point grid [outputCPP.nii]
+        #f'-voff'
     )
 
     # print('Non linear registration command line:')
