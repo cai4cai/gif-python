@@ -17,10 +17,11 @@ HOME_FOLDER = '/home/aaron'
 WORKSPACE_FOLDER = os.path.join(HOME_FOLDER, 'Dropbox/KCL/Projects')
 
 # NIFTYREG_PATH = os.path.join(WORKSPACE_FOLDER, 'third-party', 'niftyreg', 'build', 'reg-apps')
-NIFTYREG_PATH = os.path.join(
-    WORKSPACE_FOLDER, 'trustworthy-ai-fetal-brain-segmentation',
-    'docker', 'third-party', 'niftyreg', 'build', 'reg-apps',
-)
+# NIFTYREG_PATH = os.path.join(
+#     WORKSPACE_FOLDER, 'trustworthy-ai-fetal-brain-segmentation',
+#     'docker', 'third-party', 'niftyreg', 'build', 'reg-apps',
+# )
+NIFTYREG_PATH = "/usr/local/bin"
 NIFTYSEG_PATH = "/usr/local/bin"
 
 

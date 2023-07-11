@@ -1,4 +1,6 @@
 import os
+import shutil
+
 import nibabel as nib
 from scipy.ndimage import gaussian_filter
 from scipy.ndimage.morphology import binary_dilation
@@ -120,18 +122,17 @@ def _register_atlas_to_img(image_nii, mask_nii,
     mask_path = os.path.join(save_folder, 'mask.nii.gz')
     atlas_img_path = os.path.join(save_folder, 'atlas_img.nii.gz')
     atlas_mask_path = os.path.join(save_folder, 'atlas_mask.nii.gz')
+
     save_nifti(image_nii.get_fdata(), image_nii.affine, img_path)
     save_nifti(atlas_nii.get_fdata(), atlas_nii.affine, atlas_img_path)
-    save_nifti(
-        mask_nii.get_fdata().astype(np.uint8),
-        mask_nii.affine,
-        mask_path
-    )
-    save_nifti(
-        atlas_mask_nii.get_fdata().astype(np.uint8),
-        atlas_mask_nii.affine,
-        atlas_mask_path
-    )
+    save_nifti(mask_nii.get_fdata().astype(np.uint8), mask_nii.affine, mask_path)
+    save_nifti(atlas_mask_nii.get_fdata().astype(np.uint8), atlas_mask_nii.affine, atlas_mask_path)
+
+    # copy the image and mask to the save folder
+    shutil.copy(image_nii.file_map['image'].filename, img_path)
+    shutil.copy(mask_nii.file_map['image'].filename, mask_path)
+    shutil.copy(atlas_nii.file_map['image'].filename, atlas_img_path)
+    shutil.copy(atlas_mask_nii.file_map['image'].filename, atlas_mask_path)
 
     # Affine registration
     if use_affine or affine_only:
@@ -142,14 +143,12 @@ def _register_atlas_to_img(image_nii, mask_nii,
             f'-ref "{img_path}" '
             f'-rmask "{mask_path}" '
             f'-flo "{atlas_img_path}" '
-            f'-fmask "{atlas_mask_path}" '
+            #f'-fmask "{atlas_mask_path}" '
             f'-res "{affine_res_path}" '
             f'-aff "{affine_path}" '
-            f'-comm '
             f'-voff '
             f'-omp {OMP} '
             f'-lp 2 '
-            f'-speeeeed '
         )
         print(affine_reg_cmd)
         os.system(affine_reg_cmd)
@@ -194,25 +193,26 @@ def _register_atlas_to_img(image_nii, mask_nii,
     cpp_path = os.path.join(save_folder, 'cpp.nii.gz')
     reg_options = (
         f'-jl 0.0001 '  # Weight of log of the Jacobian determinant penalty term
-        f'-be 0.005 '  # Weight of the bending energy (second derivative of the transformation) penalty term  
+        f'-be 0.005 '  # Weight of the bending energy (second derivative of the transformation) penalty term
         f'-maxit 250 '  # Maximum number of iterations
-        f'-ln 4 '  # Number of level to perform
+        f'-ln 4 '  # Number of levels
         f'-lp 3 '  # Only perform the first levels [ln]
         f'-sx -5.0 '  # Final grid spacing in the x direction, adopted in y and z directions if not specified
-        f'-lncc 0 5.0 '
+        f'--lncc 5.0 '
+        f'--interp 1 '  # Interpolation order (0=NN, 1=linear, 3=cubic)
     )
     reg_cmd = (
         f'{NIFTYREG_PATH}/reg_f3d '
         f'-ref "{img_path}" '
         f'-flo "{atlas_img_path}" '
         f'-rmask "{mask_path}" '
-        f'-fmask "{atlas_mask_path}" '
+        #f'-fmask "{atlas_mask_path}" '
         f'-aff "{affine_path}" '
         f'{reg_options} '
         f'-omp {OMP} '
         f'-res "{res_path}" '  # Filename of the resampled image
         f'-cpp "{cpp_path}" '  # Filename of control point grid [outputCPP.nii]
-        f'-voff'
+        #f'-voff'
     )
 
     # print('Non linear registration command line:')
