@@ -194,7 +194,7 @@ def _register_atlas_to_img(image_nii, mask_nii,
     reg_options = (
         f'-jl 0.0001 '  # Weight of log of the Jacobian determinant penalty term
         f'-be 0.005 '  # Weight of the bending energy (second derivative of the transformation) penalty term
-        f'-maxit 250 '  # Maximum number of iterations
+        f'-maxit 100 '  # Maximum number of iterations
         f'-ln 4 '  # Number of levels
         f'-lp 3 '  # Only perform the first levels [ln]
         f'-sx -5.0 '  # Final grid spacing in the x direction, adopted in y and z directions if not specified
@@ -215,9 +215,22 @@ def _register_atlas_to_img(image_nii, mask_nii,
         #f'-voff'
     )
 
-    # print('Non linear registration command line:')
+        # print('Non linear registration command line:')
     # print(reg_cmd)
     os.system(reg_cmd)
+
+    # apply the registration to the atlas image again using reg_resample
+    reg_resample_cmd = (
+        f'{NIFTYREG_PATH}/reg_resample '
+        f'-ref "{img_path}" '
+        f'-flo "{atlas_img_path}" '
+        f'-trans "{cpp_path}" '
+        f'-inter 1 '
+        f'-res "{res_path.replace(".nii.gz", "_linear_interp.nii.gz")}" '
+
+    )
+    os.system(reg_resample_cmd)
+
     return affine_path, cpp_path
 
 
