@@ -1,4 +1,5 @@
 import os
+import time
 
 from src.multi_atlas.inference import multi_atlas_segmentation
 import nibabel as nib
@@ -15,6 +16,7 @@ atlas_pred_save_folder = "./data/results_GENFI_atlases"
 
 MERGING_MULTI_ATLAS = 'GIF'
 
+time_0 = time.time()
 pred_atlas = multi_atlas_segmentation(
         img_path=img_path,
         mask_path= mask_path,
@@ -30,4 +32,6 @@ pred_atlas = multi_atlas_segmentation(
         reuse_existing_pred=False,
         force_recompute_heat_kernels=False,
     )
+time_1 = time.time()
+print("Total running time: ", time_1 - time_0, " seconds")
 

@@ -1,3 +1,4 @@
+import multiprocessing
 import os
 import time
 
@@ -19,6 +20,18 @@ SUPPORTED_MERGING_METHOD = [
     'GIF',
 ]
 
+# global dictionary to store variables that are shared across processes
+var_dict = {}
+
+def init_worker(warped_atlases2, warped_atlases_shape, weights2, weights_shape):
+    # Using a dictionary is not strictly necessary. You can also
+    # use global variables.
+    var_dict['warped_atlases'] = warped_atlases2
+    var_dict['warped_atlases_shape'] = warped_atlases_shape
+    var_dict['weights'] = weights2
+    var_dict['weights_shape'] = weights_shape
+
+
 def _weights_from_log_heat_kernels(log_heat_kernels):
     max_heat = log_heat_kernels.max(axis=0)
     x = log_heat_kernels - max_heat[None,:,:,:]
@@ -27,6 +40,47 @@ def _weights_from_log_heat_kernels(log_heat_kernels):
     w = exp_x / norm[None,:,:,:]
     return w
 
+
+def merge_label_weights(params):
+    print(f"merge_label_weights for label {params[0]}")
+    l = params[0]
+    structure_dict = params[1]
+
+    weights = var_dict['weights']
+    warped_atlases = var_dict['warped_atlases']
+
+    if not l in structure_dict['tissues']:
+        print(f"Label {l} is not present in the structures_info.csv. Assign zero probability...")
+
+        # print shape of returned array
+        print(f"Shape of returned array: {np.zeros(var_dict['warped_atlases_shape'][1:]).shape}")
+
+        return np.zeros(var_dict['warped_atlases_shape'][1:])
+
+    # return summed weights for the current label for all atlases
+    num_atlases = var_dict['warped_atlases_shape'][0]
+    num_voxels = np.prod(var_dict['warped_atlases_shape'][1:])
+    labels_weights = np.zeros(num_voxels)
+
+    try:
+        for a in range(num_atlases):
+            for i in range(num_voxels):
+                # get the linear index of the current voxel of atlas a
+                idx = i + a * num_voxels
+                # if the current voxel of atlas a has label l and a weight > 0
+                if weights[idx]>0 and warped_atlases[idx] == l:
+                    # add the weight of the current voxel of atlas a to the
+                    # corresponding voxel in labels_weights
+                    labels_weights[i] += weights[idx]
+    except:
+        print(f"Error in merge_label_weights for label {l}, atlas {a}, voxel {i}")
+        print(f" Length of warped_atlases: {len(warped_atlases)}")
+        print(f" Length of weights: {len(weights)}")
+        raise Exception("Error in merge_label_weights")
+
+    labels_weights = labels_weights.reshape(*var_dict['warped_atlases_shape'][1:])
+
+    return labels_weights
 
 def nibabel_load_and_get_fdata(filepath):
     return nib.load(filepath).get_fdata()
@@ -246,7 +300,7 @@ def multi_atlas_segmentation(img_path,
                             only_affine]
                            for folder in atlas_folder_list]
 
-            num_pools = 2
+            num_pools = 14
 
             if MULTIPROCESSING:
                 with Pool(num_pools) as p:
@@ -287,7 +341,9 @@ def multi_atlas_segmentation(img_path,
             print(f"Weights loading completed after {time.time() - t_0_weight:.3f} seconds")
 
 
-            # Merge the proba predictions for tissue segmentation
+            # Merge the proba predictions for structure segmentation
+
+            # get structure info
             tissue_info_csv_path = os.path.join(os.path.dirname(atlas_folder_list[0]), 'tissues_info.csv')
             tissue_dict = pd.read_csv(tissue_info_csv_path, index_col="label").to_dict(orient='dict')
 
@@ -295,10 +351,6 @@ def multi_atlas_segmentation(img_path,
             structure_df = pd.read_csv(structure_info_csv_path, index_col="label", converters={'tissues': literal_eval})\
 
             structure_dict = structure_df.to_dict(orient='dict')
-
-            num_tissue = len(tissue_dict['name'])
-            multi_atlas_tissue_prior = np.zeros(tuple(weights.shape[1:] + (num_tissue,)))
-            multi_atlas_proba_seg = np.zeros(tuple(weights.shape[1:] + (num_class,)), dtype=np.float32)
 
             print(f"Merge label weights from all atlases...")
             t_0_combprobs = time.time()
@@ -311,25 +363,54 @@ def multi_atlas_segmentation(img_path,
                     proba_seg_path_list_l_a = list(
                         map(list, zip(*warped_atlas_path_list_or_proba_seg_path_list_a_l)))  # transpose the list of lists
 
-            for l in tqdm(range(num_class)):
+            multi_atlas_proba_seg = np.zeros((*img_nii.shape, num_class), dtype=np.float32)
+            if MULTIPROCESSING:
+
+                warped_atlases_shared = multiprocessing.RawArray('I', warped_atlases.size)
+                warped_atlases_shared[:] = warped_atlases.reshape(-1)
+                warped_atlases_shape = warped_atlases.shape
+                del warped_atlases
+
+                weights_shared = multiprocessing.RawArray('f', weights.size)
+                weights_shared[:] = weights.reshape(-1)
+                weights_shape = weights.shape
+                del weights
+
+                with Pool(num_pools, initializer=init_worker, initargs=(warped_atlases_shared,
+                                                                        warped_atlases_shape,
+                                                                        weights_shared,
+                                                                        weights_shape)) as p:
+
+
+                    # Create arguments for the worker function as tuples
+                    args_list = [[l, structure_dict] for l in range(num_class)]
+
+                    multi_atlas_proba_seg_list =p.map(merge_label_weights, args_list) # num_class x [ H x W x D ]
+
+                    # delete the shared memory
+                    del warped_atlases_shared
+                    del weights_shared
+
+                    # loop over the list backwards to delete the last element first
+                    for l in range(num_class)[::-1]:
+                        print(f"Deleting {l}th element of the list...")
+                        multi_atlas_proba_seg[:, :, :, l] = multi_atlas_proba_seg_list[l]
+                        # delete lth element of the list
+                        del multi_atlas_proba_seg_list[l]
+            else:
+                for l in tqdm(range(num_class)):
+                    multi_atlas_proba_seg[:, :, :, l] = merge_label_weights(l)
+
+            # # save the merged probabilities
+            # multi_atlas_proba_seg_nii = nib.Nifti1Image(multi_atlas_proba_seg, affine=img_nii.affine)
+            # nib.save(multi_atlas_proba_seg_nii, os.path.join(save_folder, f"multi_atlas_proba_seg.nii.gz"))
+
+            # Merge the proba predictions for tissue segmentation
+            num_tissue = len(tissue_dict['name'])
+            multi_atlas_tissue_prior = np.zeros(tuple(img_nii.shape + (num_tissue,)))
+            for l in range(num_class):
                 if not l in structure_dict['tissues']:
-                    print(f"Label {l} is not present in the structures_info.csv. Assign zero probability...")
                     continue
-
-                if RESAMPLE_METHOD == 0:
-                    # merge weights for the current label for all atlases
-                    multi_atlas_proba_seg[:, :, :, l] = np.sum(weights * (warped_atlases == l), axis=0)  # H, W, D
-
-                # elif RESAMPLE_METHOD == 1:
-                #     proba_seg_path_list_a = proba_seg_path_list_l_a[l]
-                #     weighted_proba_seg_a = p.map(nibabel_load_and_get_fdata_and_weight,
-                #                                  [[proba_seg_path_list_a[a], weights[a, :, :, :]] for a in
-                #                                   range(num_atlases)])
-                #     weighted_proba_seg_a = np.array(weighted_proba_seg_a)  # num_atlas x H x W x D ; converts list of arrays to numpy array
-                #
-                #     # sum all probabilities that are assigned to the same tissue, while dividing probabilities by the number of tissues they are assigned to
-                #     weighted_proba_seg = np.sum(weighted_proba_seg_a, axis=0)  # H x W x D; final weighted sum for class l
-
                 assigned_tissues = structure_dict['tissues'][l]
                 for t in assigned_tissues:
                     multi_atlas_tissue_prior[:, :, :, t] += multi_atlas_proba_seg[:, :, :, l] / len(assigned_tissues) # H x W x D x num_tissue
@@ -337,9 +418,6 @@ def multi_atlas_segmentation(img_path,
             # where ever the sum of probabilities is 0, set the first class (background) to 1
             multi_atlas_proba_seg[np.sum(multi_atlas_proba_seg, axis=-1) == 0, 0] = 1
 
-            # # save the merged probabilities
-            # multi_atlas_proba_seg_nii = nib.Nifti1Image(multi_atlas_proba_seg, affine=img_nii.affine)
-            # nib.save(multi_atlas_proba_seg_nii, os.path.join(save_folder, f"multi_atlas_proba_seg.nii.gz"))
 
     else:
         # load the probabilities
