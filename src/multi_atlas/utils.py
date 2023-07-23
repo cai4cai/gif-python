@@ -45,8 +45,8 @@ def structure_seg_from_tissue_seg(tiss_seg, lab_probs, tissue_dict):
 
     time_0 = time.time()
 
-    lab_probs_idx_sorted = lab_probs.argsort(axis=-1)  # flip to get ascending sort order
-    print('Time for sorting all label probabilities : ', time.time() - time_0)
+    # lab_probs_idx_sorted = lab_probs.argsort(axis=-1)  # flip to get ascending sort order
+    # print('Time for sorting all label probabilities : ', time.time() - time_0)
 
     # start_time = time.time()
     # num_labels = lab_probs_idx_sorted.shape[-1]
@@ -94,7 +94,7 @@ def structure_seg_from_tissue_seg(tiss_seg, lab_probs, tissue_dict):
 
     # alternative method: loop over all voxels and check if the highest label maps to the correct tissue
     # according to tissue_dict and tiss_seg
-    num_labels = lab_probs_idx_sorted.shape[-1]
+    num_labels = lab_probs.shape[-1]
     structure_seg = np.zeros_like(tiss_seg)
     range_x = range(tiss_seg.shape[0])
     range_y = range(tiss_seg.shape[1])
@@ -104,7 +104,9 @@ def structure_seg_from_tissue_seg(tiss_seg, lab_probs, tissue_dict):
             for z in range_z:
                     for i in range(num_labels):
                         # get the label with the ith-highest probability
-                        lab_idx_curr = lab_probs_idx_sorted[x, y, z, num_labels - i - 1]
+                        #lab_idx_curr = lab_probs_idx_sorted[x, y, z, num_labels - i - 1]
+                        # get the label index with the ith-highest probability using np.argpartition
+                        lab_idx_curr = np.argpartition(lab_probs[x, y, z, :], -i - 1)[-i - 1]
                         assigned_tissues = tissue_dict[lab_idx_curr]
                         if tiss_seg[x, y, z] in assigned_tissues:
                             structure_seg[x, y, z] = lab_idx_curr

@@ -41,7 +41,7 @@ def _weights_from_log_heat_kernels(log_heat_kernels):
     return w
 
 
-def merge_label_weights(params):
+def merge_label_weights_multiprocessing(params):
     print(f"merge_label_weights for label {params[0]}")
     l = params[0]
     structure_dict = params[1]
@@ -79,6 +79,20 @@ def merge_label_weights(params):
         raise Exception("Error in merge_label_weights")
 
     labels_weights = labels_weights.reshape(*var_dict['warped_atlases_shape'][1:])
+
+    return labels_weights
+
+def merge_label_weights(label, structure_dict, warped_atlases, weights):
+    l = label
+    if not l in structure_dict['tissues']:
+        print(f"Label {l} is not present in the structures_info.csv. Assign zero probability...")
+        return np.zeros(warped_atlases.shape[1:], dtype=np.float32)
+
+    # return summed weights for the current label for all atlases
+    labels_weights = weights * (warped_atlases == l)
+
+    # sum over all atlases
+    labels_weights = np.sum(labels_weights, axis=0)
 
     return labels_weights
 
@@ -364,7 +378,8 @@ def multi_atlas_segmentation(img_path,
                         map(list, zip(*warped_atlas_path_list_or_proba_seg_path_list_a_l)))  # transpose the list of lists
 
             multi_atlas_proba_seg = np.zeros((*img_nii.shape, num_class), dtype=np.float32)
-            if MULTIPROCESSING:
+
+            if False:  # MULTIPROCESSING:
 
                 warped_atlases_shared = multiprocessing.RawArray('I', warped_atlases.size)
                 warped_atlases_shared[:] = warped_atlases.reshape(-1)
@@ -385,7 +400,7 @@ def multi_atlas_segmentation(img_path,
                     # Create arguments for the worker function as tuples
                     args_list = [[l, structure_dict] for l in range(num_class)]
 
-                    multi_atlas_proba_seg_list =p.map(merge_label_weights, args_list) # num_class x [ H x W x D ]
+                    multi_atlas_proba_seg_list =p.map(merge_label_weights_multiprocessing, args_list) # num_class x [ H x W x D ]
 
                     # delete the shared memory
                     del warped_atlases_shared
@@ -399,7 +414,7 @@ def multi_atlas_segmentation(img_path,
                         del multi_atlas_proba_seg_list[l]
             else:
                 for l in tqdm(range(num_class)):
-                    multi_atlas_proba_seg[:, :, :, l] = merge_label_weights(l)
+                    multi_atlas_proba_seg[:, :, :, l] = merge_label_weights(l, structure_dict, warped_atlases, weights)
 
             # # save the merged probabilities
             # multi_atlas_proba_seg_nii = nib.Nifti1Image(multi_atlas_proba_seg, affine=img_nii.affine)
