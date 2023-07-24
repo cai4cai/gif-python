@@ -5,6 +5,7 @@ import time
 import numpy as np
 import nibabel as nib
 import pandas as pd
+from numba import njit
 from tqdm import tqdm
 
 from src.multi_atlas.atlas_propagation import probabilistic_segmentation_prior
@@ -297,150 +298,176 @@ def multi_atlas_segmentation(img_path,
     img_nii = nib.load(img_path)
     mask_nii = nib.load(mask_path)
 
-    if True: # not os.path.exists(os.path.join(save_folder, f"multi_atlas_tissue_prior.nii.gz")):
+    # Register the atlas segmentations to the input image
+    param_lists = [[folder,
+                    save_folder,
+                    reuse_existing_pred,
+                    force_recompute_heat_kernels,
+                    img_nii,
+                    mask_nii,
+                    num_class,
+                    grid_spacing,
+                    be,
+                    le,
+                    lp,
+                    only_affine]
+                   for folder in atlas_folder_list]
 
-            # Register the atlas segmentations to the input image
-            param_lists = [[folder,
-                            save_folder,
-                            reuse_existing_pred,
-                            force_recompute_heat_kernels,
-                            img_nii,
-                            mask_nii,
-                            num_class,
-                            grid_spacing,
-                            be,
-                            le,
-                            lp,
-                            only_affine]
-                           for folder in atlas_folder_list]
+    num_pools = 14
 
-            num_pools = 14
-
-            if MULTIPROCESSING:
-                with Pool(num_pools) as p:
-                    print(f"Start multiprocessing with {num_pools} pools...")
-                    out =  p.map(calculate_warped_prob_segmentation, param_lists)
-            else:
-                out = []
-                for params in param_lists:
-                    result = calculate_warped_prob_segmentation(params)
-                    out.append(result)
-
-            warped_atlas_path_list_or_proba_seg_path_list_a_l = [p[0] for p in out]
-            weights_path_list = [p[1] for p in out]
-
-            # Merging probabilities
-            num_atlases = len(warped_atlas_path_list_or_proba_seg_path_list_a_l)
-            # Merge the proba predictions
-            print("Merging probabilities...")
-
-
-            print("Start weights loading from disk...")
-            t_0_weight = time.time()
-
-            if MULTIPROCESSING:
-                with Pool(num_pools) as p:
-                    weights_list = p.map(nibabel_load_and_get_fdata, weights_path_list)  # n_atlas * [H, W, D]
-            else:
-                weights_list = []
-                for path in weights_path_list:
-                    weight = nibabel_load_and_get_fdata(path)
-                    weights_list.append(weight)
-
-            # calculate the weights from the heat kernels
-            weights = np.stack(weights_list, axis=0)  # n_atlas, H, W, D
-            # set NaN in the weights to 0
-            weights[np.isnan(weights)] = 0
-
-            print(f"Weights loading completed after {time.time() - t_0_weight:.3f} seconds")
-
-
-            # Merge the proba predictions for structure segmentation
-
-            # get structure info
-            tissue_info_csv_path = os.path.join(os.path.dirname(atlas_folder_list[0]), 'tissues_info.csv')
-            tissue_dict = pd.read_csv(tissue_info_csv_path, index_col="label").to_dict(orient='dict')
-
-            structure_info_csv_path = os.path.join(os.path.dirname(atlas_folder_list[0]), 'structures_info.csv')
-            structure_df = pd.read_csv(structure_info_csv_path, index_col="label", converters={'tissues': literal_eval})\
-
-            structure_dict = structure_df.to_dict(orient='dict')
-
-            print(f"Merge label weights from all atlases...")
-            t_0_combprobs = time.time()
-            with Pool(num_pools) as p:
-                if RESAMPLE_METHOD == 0:
-                    warped_atlases = np.array(p.map(nibabel_load_and_get_fdata_as_uint8,
-                                                    [warped_atlas_path_list_or_proba_seg_path_list_a_l[a] for a in
-                                                     range(num_atlases)]))  # num_atlases x H x W x D
-                elif RESAMPLE_METHOD == 1:
-                    proba_seg_path_list_l_a = list(
-                        map(list, zip(*warped_atlas_path_list_or_proba_seg_path_list_a_l)))  # transpose the list of lists
-
-            multi_atlas_proba_seg = np.zeros((*img_nii.shape, num_class), dtype=np.float32)
-
-            if False:  # MULTIPROCESSING:
-
-                warped_atlases_shared = multiprocessing.RawArray('I', warped_atlases.size)
-                warped_atlases_shared[:] = warped_atlases.reshape(-1)
-                warped_atlases_shape = warped_atlases.shape
-                del warped_atlases
-
-                weights_shared = multiprocessing.RawArray('f', weights.size)
-                weights_shared[:] = weights.reshape(-1)
-                weights_shape = weights.shape
-                del weights
-
-                with Pool(num_pools, initializer=init_worker, initargs=(warped_atlases_shared,
-                                                                        warped_atlases_shape,
-                                                                        weights_shared,
-                                                                        weights_shape)) as p:
-
-
-                    # Create arguments for the worker function as tuples
-                    args_list = [[l, structure_dict] for l in range(num_class)]
-
-                    multi_atlas_proba_seg_list =p.map(merge_label_weights_multiprocessing, args_list) # num_class x [ H x W x D ]
-
-                    # delete the shared memory
-                    del warped_atlases_shared
-                    del weights_shared
-
-                    # loop over the list backwards to delete the last element first
-                    for l in range(num_class)[::-1]:
-                        print(f"Deleting {l}th element of the list...")
-                        multi_atlas_proba_seg[:, :, :, l] = multi_atlas_proba_seg_list[l]
-                        # delete lth element of the list
-                        del multi_atlas_proba_seg_list[l]
-            else:
-                for l in tqdm(range(num_class)):
-                    multi_atlas_proba_seg[:, :, :, l] = merge_label_weights(l, structure_dict, warped_atlases, weights)
-
-            # # save the merged probabilities
-            # multi_atlas_proba_seg_nii = nib.Nifti1Image(multi_atlas_proba_seg, affine=img_nii.affine)
-            # nib.save(multi_atlas_proba_seg_nii, os.path.join(save_folder, f"multi_atlas_proba_seg.nii.gz"))
-
-            # Merge the proba predictions for tissue segmentation
-            num_tissue = len(tissue_dict['name'])
-            multi_atlas_tissue_prior = np.zeros(tuple(img_nii.shape + (num_tissue,)))
-            for l in range(num_class):
-                if not l in structure_dict['tissues']:
-                    continue
-                assigned_tissues = structure_dict['tissues'][l]
-                for t in assigned_tissues:
-                    multi_atlas_tissue_prior[:, :, :, t] += multi_atlas_proba_seg[:, :, :, l] / len(assigned_tissues) # H x W x D x num_tissue
-
-            # where ever the sum of probabilities is 0, set the first class (background) to 1
-            multi_atlas_proba_seg[np.sum(multi_atlas_proba_seg, axis=-1) == 0, 0] = 1
-
-
+    if MULTIPROCESSING:
+        with Pool(num_pools) as p:
+            print(f"Start multiprocessing with {num_pools} pools...")
+            out =  p.map(calculate_warped_prob_segmentation, param_lists)
     else:
-        # load the probabilities
-        print(f"Skip merging and doad the merged tissue probabilities from {save_folder}...")
-        multi_atlas_tissue_prior = nibabel_load_and_get_fdata(os.path.join(save_folder, f"multi_atlas_tissue_prior.nii.gz"))  # H x W x D x num_tissue
+        out = []
+        for params in param_lists:
+            result = calculate_warped_prob_segmentation(params)
+            out.append(result)
 
-    # set all NaN to 0
-    multi_atlas_tissue_prior[np.isnan(multi_atlas_tissue_prior)] = 0
+    warped_atlas_path_list_or_proba_seg_path_list_a_l = [p[0] for p in out]
+    weights_path_list = [p[1] for p in out]
+
+    # Merging probabilities
+    num_atlases = len(warped_atlas_path_list_or_proba_seg_path_list_a_l)
+    # Merge the proba predictions
+    print("Merging probabilities...")
+
+
+    print("Start weights loading from disk...")
+    t_0_weight = time.time()
+
+    if MULTIPROCESSING:
+        with Pool(num_pools) as p:
+            weights_list = p.map(nibabel_load_and_get_fdata, weights_path_list)  # n_atlas * [H, W, D]
+    else:
+        weights_list = []
+        for path in weights_path_list:
+            weight = nibabel_load_and_get_fdata(path)
+            weights_list.append(weight)
+
+    # calculate the weights from the heat kernels
+    weights = np.stack(weights_list, axis=0)  # n_atlas, H, W, D
+    # set NaN in the weights to 0
+    weights[np.isnan(weights)] = 0
+
+    print(f"Weights loading completed after {time.time() - t_0_weight:.3f} seconds")
+
+
+    # Merge the proba predictions for structure segmentation
+
+    # get structure info
+    tissue_info_csv_path = os.path.join(os.path.dirname(atlas_folder_list[0]), 'tissues_info.csv')
+    tissue_dict = pd.read_csv(tissue_info_csv_path, index_col="label").to_dict(orient='dict')
+
+    structure_info_csv_path = os.path.join(os.path.dirname(atlas_folder_list[0]), 'structures_info.csv')
+    structure_df = pd.read_csv(structure_info_csv_path, index_col="label", converters={'tissues': literal_eval})\
+
+    structure_dict = structure_df.to_dict(orient='dict')
+
+    # create 2D numpy array that indicates which structure is present in which tissue
+    num_tissue = len(tissue_dict['name'])
+    struc_in_tiss_mat = np.zeros((num_class, num_tissue), dtype=np.bool)
+    for t in range(num_tissue):
+        for l in structure_dict['tissues']:
+            struc_in_tiss_mat[l, t] = True if t in structure_dict['tissues'][l] else False
+
+    print(f"Merge label weights from all atlases...")
+    t_0_combprobs = time.time()
+    with Pool(num_pools) as p:
+        if RESAMPLE_METHOD == 0:
+            warped_atlases = np.array(p.map(nibabel_load_and_get_fdata_as_uint8,
+                                            [warped_atlas_path_list_or_proba_seg_path_list_a_l[a] for a in
+                                             range(num_atlases)]))  # num_atlases x H x W x D
+        elif RESAMPLE_METHOD == 1:
+            proba_seg_path_list_l_a = list(
+                map(list, zip(*warped_atlas_path_list_or_proba_seg_path_list_a_l)))  # transpose the list of lists
+
+########################################################################################################################
+    # @njit
+    # def get_label_weigths(warped_atlases, weights, label):
+    #     return np.sum(weights * (warped_atlases == label), axis=0)
+
+    @njit
+    def get_multi_atlas_proba_seg(warped_atlases, weights, labels_array):
+        multi_atlas_proba_seg = np.zeros((*warped_atlases.shape[1:], num_class), dtype=np.float32)
+
+        for x in range(warped_atlases.shape[1]):
+            print(x)
+            for y in range(warped_atlases.shape[2]):
+                for z in range(warped_atlases.shape[3]):
+                    for l in labels_array:
+                        #print(l)
+                        for a in range(warped_atlases.shape[0]):
+
+                            if warped_atlases[a, x, y, z] == l:
+                                multi_atlas_proba_seg[x, y, z, l] += weights[a, x, y, z]
+                    # where ever the sum of probabilities is 0, set the first class (background) to 1
+                    if np.sum(multi_atlas_proba_seg[x, y, z, :]) == 0:
+                        multi_atlas_proba_seg[x, y, z, 0] = 1
+
+        # # where ever the sum of probabilities is 0, set the first class (background) to 1
+        # multi_atlas_proba_seg[np.sum(multi_atlas_proba_seg, axis=-1) == 0, 0] = 1
+
+        return multi_atlas_proba_seg
+
+    multi_atlas_proba_seg = get_multi_atlas_proba_seg(warped_atlases, weights, labels_array=np.array(list(structure_dict['name'].keys())))
+
+    # # save the merged probabilities
+    # multi_atlas_proba_seg_nii = nib.Nifti1Image(multi_atlas_proba_seg, affine=img_nii.affine)
+    # nib.save(multi_atlas_proba_seg_nii, os.path.join(save_folder, f"multi_atlas_proba_seg.nii.gz"))
+
+########################################################################################################################
+    # Merge the proba predictions for tissue segmentation
+
+    # @njit
+    # def get_struc_label_prob(multi_atlas_proba_seg, nb_assigned_tissues):
+    #     struc_label_prob = np.zeros(multi_atlas_proba_seg.shape[:3], dtype=np.float32)
+    #     for x in range(multi_atlas_proba_seg.shape[0]):
+    #         #print("x: ", x)
+    #         for y in range(multi_atlas_proba_seg.shape[1]):
+    #             #print("y: ", y)
+    #             for z in range(multi_atlas_proba_seg.shape[2]):
+    #                 #print("z: ", z)
+    #                 struc_label_prob[x, y, z] = multi_atlas_proba_seg[x, y, z] / nb_assigned_tissues # H x W x D x num_tissue)
+    #
+    #     return struc_label_prob
+    #
+    #
+    # @njit
+    # def get_multi_atlas_tissue_prior(multi_atlas_proba_seg, struc_in_tiss_mat):
+    #     multi_atlas_tissue_prior = np.zeros((*multi_atlas_proba_seg.shape[:3], num_tissue), dtype=np.float32)
+    #
+    #     print("multi_atlas_proba_seg.shape: ", multi_atlas_proba_seg.shape)
+    #     print("struc_in_tiss_mat.shape: ", struc_in_tiss_mat.shape)
+    #     print("multi_atlas_tissue_prior.shape: ", multi_atlas_tissue_prior.shape)
+    #
+    #     nb_assigned_tissues = np.sum(struc_in_tiss_mat, axis=1)  # num_class                nb_assigned_tissues = np.sum(struc_in_tiss_mat, axis=1)
+    #
+    #     for l in range(multi_atlas_proba_seg.shape[3]):
+    #         print("label: ", l)
+    #         for t in range(struc_in_tiss_mat.shape[1]):
+    #             if struc_in_tiss_mat[l, t]:
+    #                 #print("tissue: ", t)
+    #                 multi_atlas_tissue_prior[:, :, :, t] += get_struc_label_prob(multi_atlas_proba_seg[:, :, :, l], nb_assigned_tissues[l])
+    #
+    #     return multi_atlas_tissue_prior
+    #
+    # multi_atlas_tissue_prior = get_multi_atlas_tissue_prior(multi_atlas_proba_seg, struc_in_tiss_mat)
+
+
+    multi_atlas_tissue_prior = np.zeros(tuple(img_nii.shape + (num_tissue,)), dtype=np.float32)
+    for l in range(num_class):
+        if not l in structure_dict['tissues']:
+            continue
+        assigned_tissues = structure_dict['tissues'][l]
+        for t in assigned_tissues:
+            multi_atlas_tissue_prior[:, :, :, t] += multi_atlas_proba_seg[:, :, :, l] / len(assigned_tissues) # H x W x D x num_tissue
+
+########################################################################################################################
+
+    # # set all NaN to 0
+    # multi_atlas_tissue_prior[np.isnan(multi_atlas_tissue_prior)] = 0
 
     # set the background tissue class to the inverse of the mask
     multi_atlas_tissue_prior[:, :, :, 0] = 1-mask_nii.get_fdata().astype(np.uint8)
@@ -454,9 +481,8 @@ def multi_atlas_segmentation(img_path,
     # set everything below 0.01 to 0 and renormalise
     multi_atlas_tissue_prior[multi_atlas_tissue_prior < 0.01] = 0
 
-    # if everything is 0, set class 0 to 1
-    if np.sum(multi_atlas_tissue_prior) == 0:
-        multi_atlas_tissue_prior[:, :, :, 0] = 1
+    # set voxels that are not assigned to any tissue to the background tissue
+    multi_atlas_tissue_prior[np.sum(multi_atlas_tissue_prior, axis=-1) == 0, 0] = 1
 
     # renormalise
     multi_atlas_tissue_prior = multi_atlas_tissue_prior / np.sum(multi_atlas_tissue_prior, axis=-1, keepdims=True)

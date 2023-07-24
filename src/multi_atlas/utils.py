@@ -5,6 +5,8 @@ import numpy as np
 import time
 
 import nibabel as nib
+from numba import njit
+
 from src.utils.definitions import NIFTYREG_PATH, NIFTYSEG_PATH
 
 def compute_disp_from_cpp(cpp_path, ref_path, save_disp_path):
@@ -43,7 +45,7 @@ def structure_seg_from_tissue_seg(tiss_seg, lab_probs, tissue_dict):
     :return: structure segmentation, shape (x, y, z)
     """
 
-    time_0 = time.time()
+    # time_0 = time.time()
 
     # lab_probs_idx_sorted = lab_probs.argsort(axis=-1)  # flip to get ascending sort order
     # print('Time for sorting all label probabilities : ', time.time() - time_0)
