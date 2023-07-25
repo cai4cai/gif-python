@@ -525,7 +525,7 @@ def multi_atlas_segmentation(img_path,
 
     print(f"Running structure segmentation...")
     t_0_struct_seg = time.time()
-    final_parcellation = structure_seg_from_tissue_seg(multi_atlas_tissue_seg, np.argsort(multi_atlas_proba_seg, axis=-1), struc_in_tiss_mat)
+    final_parcellation = structure_seg_from_tissue_seg(multi_atlas_tissue_seg, multi_atlas_proba_seg, structure_dict['tissues'])
     print(f"Running structure segmentation completed after {time.time() - t_0_struct_seg:.3f} seconds")
 
     predicted_segmentation_nii = nib.Nifti1Image(final_parcellation, img_nii.affine)
