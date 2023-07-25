@@ -1,13 +1,72 @@
 import numpy as np
-from scipy.ndimage import convolve, gaussian_filter
-from scipy.ndimage.morphology import binary_dilation, binary_erosion
+from numba import njit, prange, jit
+from scipy.ndimage import gaussian_filter
 import nibabel as nib
 import os
-from astropy.convolution import convolve
 
-SIGMA_HIGH_PASS_FILTER = 20  # in mm. In the GIF paper they use 20mm.
-# NORMALIZATION = 'percentiles'  # can also be 'z_score'
-NORMALIZATION = 'z_score'  # z_score with mask erosion works best
+
+@njit(parallel=True)
+def get_multi_atlas_proba_seg(warped_atlases, weights, labels_array, multi_atlas_proba_seg):
+    for x in prange(warped_atlases.shape[1]):
+        print(x)
+        for y in range(warped_atlases.shape[2]):
+            for z in range(warped_atlases.shape[3]):
+                for l in labels_array:
+                    for a in range(warped_atlases.shape[0]):
+
+                        if warped_atlases[a, x, y, z] == l:
+                            multi_atlas_proba_seg[x, y, z, l] += weights[a, x, y, z]
+                # where ever the sum of probabilities is 0, set the first class (background) to 1
+                if np.sum(multi_atlas_proba_seg[x, y, z, :]) == 0:
+                    multi_atlas_proba_seg[x, y, z, 0] = 1
+
+    return multi_atlas_proba_seg
+
+
+def get_multi_atlas_tissue_prior(multi_atlas_proba_seg,
+                                    structure_dict,
+                                    num_class,
+                                    num_tissue,
+                                    mask_nii):
+    """
+    Calculate the multi-atlas tissue prior by distributing the probabilities of each structure to its assigned tissues
+    :param multi_atlas_proba_seg: H x W x D x num_class
+    :param structure_dict: dict
+    :param num_tissue: int
+    :param img_nii: nibabel image
+    :param mask_nii: nibabel image
+    :return: multi_atlas_tissue_prior: H x W x D x num_tissue
+    """
+
+    multi_atlas_tissue_prior = np.zeros(tuple(multi_atlas_proba_seg.shape[:3] + (num_tissue,)), dtype=np.float32)
+
+    for l in range(num_class):
+        if not l in structure_dict['tissues']:
+            continue
+        assigned_tissues = structure_dict['tissues'][l]
+        for t in assigned_tissues:
+            multi_atlas_tissue_prior[:, :, :, t] += multi_atlas_proba_seg[:, :, :, l] / len(assigned_tissues) # H x W x D x num_tissue
+
+
+    # set the background tissue class to the inverse of the mask
+    multi_atlas_tissue_prior[:, :, :, 0] = 1-mask_nii.get_fdata(dtype=np.float16).astype(np.uint8)
+
+    # set voxels that are not assigned to any tissue to the background tissue
+    multi_atlas_tissue_prior[np.sum(multi_atlas_tissue_prior, axis=-1) == 0, 0] = 1
+
+    # normalize the tissue prior
+    multi_atlas_tissue_prior = multi_atlas_tissue_prior / np.sum(multi_atlas_tissue_prior, axis=-1, keepdims=True)
+
+    # set everything below 0.01 to 0 and renormalise
+    multi_atlas_tissue_prior[multi_atlas_tissue_prior < 0.01] = 0
+
+    # set voxels that are not assigned to any tissue to the background tissue
+    multi_atlas_tissue_prior[np.sum(multi_atlas_tissue_prior, axis=-1) == 0, 0] = 1
+
+    # renormalise
+    multi_atlas_tissue_prior = multi_atlas_tissue_prior / np.sum(multi_atlas_tissue_prior, axis=-1, keepdims=True)
+
+    return multi_atlas_tissue_prior
 
 def gaussian_smooth_with_mask(input, mask, **kwargs):
         """
@@ -36,78 +95,6 @@ def gaussian_smooth_with_mask(input, mask, **kwargs):
         smoothed = (VV / WW) * mask
 
         return smoothed
-
-
-def log_heat_kernel_GIF(image, mask, atlas_warped_image, atlas_warped_mask, deformation_field, spacing=[0.8]*3):
-    def normalize_image(img, brain_mask, mode='z_score'):
-        # Prepare brain mask
-        fg_mask = (brain_mask > 0)
-        fg_mask[np.isnan(img)] = False  # remove NaNs from the mask
-        # Erode the mask because we want to make sure we do not include
-        # the background voxels to compute the intensity statistic
-        fg_mask_eroded = binary_erosion(fg_mask, iterations=3)
-
-        # Compute useful image intensity stats
-        img_fg = img[fg_mask_eroded]
-        p999 = np.percentile(img_fg, 99.9)
-        img_fg[img_fg > p999] = p999
-        mean = np.mean(img_fg)
-
-        # Normalize the image
-        img[np.isnan(img)] = mean  # Set NaNs to mean values to allow > comparison
-        img[img > p999] = p999
-        if mode == 'z_score':
-            std = np.std(img_fg)
-            img = (img - mean) / std
-        else:
-            median = np.median(img_fg)
-            p95 = np.percentile(img_fg, 95)
-            p5 = np.percentile(img_fg, 5)
-            print('Use percentiles normalization')
-            img = (img - median) / (p95 - p5)
-
-        # Set background voxels to 0
-        img[np.logical_not(fg_mask)] = 0
-
-        return img
-
-    def apply_cubic_Bsplines_kernel(intensity_map):
-        kernel1d = np.array([1./6, 2./3, 1./6])
-        kernel3d = kernel1d[:,None,None] * kernel1d[None,:,None] * kernel1d[None,None,:]  # 3x3x3
-        output = convolve(intensity_map, kernel3d, mode='nearest')
-        return output
-
-    def high_pass_filter(vector_map):
-        vector_map = np.squeeze(vector_map)
-        sigma = np.array([SIGMA_HIGH_PASS_FILTER / spacing[i] for i in range(3)] + [0.])
-        low_fq = gaussian_filter(vector_map, sigma=sigma, mode='nearest')
-        output = vector_map - low_fq
-        return output
-
-    # Normalize the input image
-    img_norm = normalize_image(
-        image, mask, mode=NORMALIZATION)
-
-    # Normalize the atlas image intensity (zero mean, unit variance for each volume)
-    atlas_img_norm = normalize_image(
-        atlas_warped_image, atlas_warped_mask,mode=NORMALIZATION)
-
-    # Compute the intensity term (LSSD)
-    ssd = (atlas_img_norm - img_norm) ** 2
-    lssd = apply_cubic_Bsplines_kernel(ssd)
-
-    # Remove the low frequencies of the deformations
-    disp = high_pass_filter(deformation_field)
-
-    # Compute the displacement field norm (in mm)
-    disp_norm = np.linalg.norm(disp, axis=-1)
-
-    # Compute the heat kernel maps
-    distance_map = 0.5 * lssd + 0.5 * disp_norm
-    log_heat_kernel = -distance_map**2
-
-    return log_heat_kernel, lssd, disp_norm
-
 
 def get_lncc_distance(image, mask, atlas_warped_image, save_folder_path, affine, spacing):
     '''

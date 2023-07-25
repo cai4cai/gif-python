@@ -2,12 +2,15 @@ import os
 import subprocess
 
 import numpy as np
-import time
-
 import nibabel as nib
-from numba import njit
 
 from src.utils.definitions import NIFTYREG_PATH, NIFTYSEG_PATH
+
+def nibabel_load_and_get_fdata(filepath, dtype=np.float32):
+    if dtype==np.uint8:
+        return nib.load(filepath).get_fdata(dtype=np.float16).astype(dtype)
+    else:
+        return nib.load(filepath).get_fdata(dtype=dtype).astype(dtype)
 
 def compute_disp_from_cpp(cpp_path, ref_path, save_disp_path):
     save_folder = os.path.split(save_disp_path)[0]
@@ -67,8 +70,16 @@ def structure_seg_from_tissue_seg(tiss_seg, lab_probs, tissue_dict):
     return structure_seg
 
 
-def seg_EM(input_filename, output_filename, mask_filename, prior_filename, verbose_level, max_iterations,
-           min_iterations, bias_field_order, bias_field_thresh, mrf_beta):
+def seg_EM(input_filename,
+           output_filename,
+           mask_filename,
+           prior_filename,
+           verbose_level,
+           max_iterations,
+           min_iterations,
+           bias_field_order,
+           bias_field_thresh,
+           mrf_beta):
     """
     Performs EM segmentation on the atlas using niftyseg.
     """

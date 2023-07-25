@@ -1,7 +1,7 @@
 import os
+import time
 
 from src.multi_atlas.inference import multi_atlas_segmentation
-from src.utils.definitions import BE, LE, LP, GRID_SPACING
 from glob import glob
 
 NUM_CLASS=160
@@ -11,23 +11,16 @@ mask_path = "./data/input/BraTS2021_00000_downsampled/BraTS2021_00000_inv-tumor-
 atlas_list = [d for d in glob("./data/GENFI_atlases/*") if os.path.isdir(d)]
 atlas_pred_save_folder = "./data/results_GENFI_atlases_downsampled"
 
-MERGING_MULTI_ATLAS = 'GIF'
-
+time_0 = time.time()
 pred_atlas = multi_atlas_segmentation(
         img_path=img_path,
         mask_path= mask_path,
         atlas_folder_list=atlas_list,
         num_class=NUM_CLASS,
-        grid_spacing=GRID_SPACING,
-        be=BE,
-        le=LE,
-        lp=LP,
         save_folder=atlas_pred_save_folder,
         only_affine=False,
-        merging_method=MERGING_MULTI_ATLAS,
-        reuse_existing_pred=False,
-        force_recompute_heat_kernels=False,
-    )
+        )
+print("Total running time: ", time.time() - time_0, " seconds")
 
 seg_out_path = os.path.join(atlas_pred_save_folder, "predicted_segmentation.nii.gz")
 os.system("itksnap -g " + img_path + " -s " + seg_out_path)
