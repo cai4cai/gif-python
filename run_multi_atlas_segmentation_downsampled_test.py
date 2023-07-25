@@ -29,3 +29,6 @@ pred_atlas = multi_atlas_segmentation(
         force_recompute_heat_kernels=False,
     )
 
+seg_out_path = os.path.join(atlas_pred_save_folder, "predicted_segmentation.nii.gz")
+os.system("itksnap -g " + img_path + " -s " + seg_out_path)
+
