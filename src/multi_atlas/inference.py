@@ -5,7 +5,7 @@ import time
 import numpy as np
 import nibabel as nib
 import pandas as pd
-from numba import njit
+from numba import njit, prange
 from tqdm import tqdm
 
 from src.multi_atlas.atlas_propagation import probabilistic_segmentation_prior
@@ -388,11 +388,10 @@ def multi_atlas_segmentation(img_path,
     # def get_label_weigths(warped_atlases, weights, label):
     #     return np.sum(weights * (warped_atlases == label), axis=0)
 
-    @njit
-    def get_multi_atlas_proba_seg(warped_atlases, weights, labels_array):
-        multi_atlas_proba_seg = np.zeros((*warped_atlases.shape[1:], num_class), dtype=np.float32)
+    @njit(parallel=True)
+    def get_multi_atlas_proba_seg(warped_atlases, weights, labels_array, multi_atlas_proba_seg):
 
-        for x in range(warped_atlases.shape[1]):
+        for x in prange(warped_atlases.shape[1]):
             print(x)
             for y in range(warped_atlases.shape[2]):
                 for z in range(warped_atlases.shape[3]):
@@ -411,7 +410,8 @@ def multi_atlas_segmentation(img_path,
 
         return multi_atlas_proba_seg
 
-    multi_atlas_proba_seg = get_multi_atlas_proba_seg(warped_atlases, weights, labels_array=np.array(list(structure_dict['name'].keys())))
+    multi_atlas_proba_seg = np.zeros((*warped_atlases.shape[1:], num_class), dtype=np.float32)
+    multi_atlas_proba_seg = get_multi_atlas_proba_seg(warped_atlases, weights, np.array(list(structure_dict['name'].keys())), multi_atlas_proba_seg)
 
     # # save the merged probabilities
     # multi_atlas_proba_seg_nii = nib.Nifti1Image(multi_atlas_proba_seg, affine=img_nii.affine)
