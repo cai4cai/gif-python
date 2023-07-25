@@ -35,19 +35,19 @@ def compute_disp_from_cpp(cpp_path, ref_path, save_disp_path):
     disp_nii = nib.Nifti1Image(disp, deformation_nii.affine)
     nib.save(disp_nii, save_disp_path)
 
-
-def structure_seg_from_tissue_seg(tiss_seg, lab_probs, tissue_dict):
+@njit(parallel=True)
+def structure_seg_from_tissue_seg(tiss_seg, lab_probs_idx_sorted, struc_in_tiss_mat):
     """
     Assigns a label to each voxel in tiss_seg based on the highest probability in lab_probs, and the tissue_dict.
     :param tiss_seg: tissue segmentation, shape (x, y, z)
     :param lab_probs: label probabilities, shape (x, y, z, num_labels)
-    :param tissue_dict: dictionary mapping labels to tissues, e.g. {0: [0, 1], 1: [2, 3], 2: [4, 5]}
+    :param struc_in_tiss_mat: matrix of shape (num_labels, num_tissues) indicating which structures are present in which tissues
     :return: structure segmentation, shape (x, y, z)
     """
 
     # time_0 = time.time()
 
-    # lab_probs_idx_sorted = lab_probs.argsort(axis=-1)  # flip to get ascending sort order
+    #lab_probs_idx_sorted = lab_probs.argsort(axis=3)
     # print('Time for sorting all label probabilities : ', time.time() - time_0)
 
     # start_time = time.time()
@@ -96,23 +96,32 @@ def structure_seg_from_tissue_seg(tiss_seg, lab_probs, tissue_dict):
 
     # alternative method: loop over all voxels and check if the highest label maps to the correct tissue
     # according to tissue_dict and tiss_seg
-    num_labels = lab_probs.shape[-1]
+    num_labels = lab_probs_idx_sorted.shape[-1]
+    num_tissues = struc_in_tiss_mat.shape[1]
     structure_seg = np.zeros_like(tiss_seg)
     range_x = range(tiss_seg.shape[0])
     range_y = range(tiss_seg.shape[1])
     range_z = range(tiss_seg.shape[2])
+
     for x in range_x:
+        print("x = ", x)
         for y in range_y:
             for z in range_z:
-                    for i in range(num_labels):
-                        # get the label with the ith-highest probability
-                        #lab_idx_curr = lab_probs_idx_sorted[x, y, z, num_labels - i - 1]
-                        # get the label index with the ith-highest probability using np.argpartition
-                        lab_idx_curr = np.argpartition(lab_probs[x, y, z, :], -i - 1)[-i - 1]
-                        assigned_tissues = tissue_dict[lab_idx_curr]
-                        if tiss_seg[x, y, z] in assigned_tissues:
+                # get the label with the ith-highest probability
+                #lab_idx_curr = lab_probs_idx_sorted[x, y, z, num_labels - i - 1]
+                # get the label index with the ith-highest probability using np.argpartition
+                label_assigned = False
+                for i in range(num_labels):
+                    lab_idx_curr = lab_probs_idx_sorted[x, y, z, -i - 1]
+                    # check if the label maps to the correct tissue according to tissue_dict and tiss_seg
+                    for t in range(num_tissues):
+                        if tiss_seg[x, y, z] == t and struc_in_tiss_mat[lab_idx_curr, t]:  # 1. t must be the correct tissue according to tiss_seg
+                                                                                           # 2. the label must be present in the tissue according to struc_in_tiss_mat
                             structure_seg[x, y, z] = lab_idx_curr
+                            label_assigned = True
                             break
+                    if label_assigned:
+                        break
 
     return structure_seg
 
