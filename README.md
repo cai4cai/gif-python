@@ -1,123 +1,71 @@
-# A Dempster-Shafer approach to trustworthy AI with application to fetal brain MRI segmentation
+# Python implementation of the Geodesic Information Flows (GIF) algorithm
+Reference: [Geodesic Information Flows: Spatially-Variant Graphs and Their Application to Segmentation and Fusion ](https://pubmed.ncbi.nlm.nih.gov/25879909/)
 
-Trustworthy AI method based on Dempster-Shafer theory with application to fetal brain 3D T2w MRI segmentation.
-![auto-seg](https://user-images.githubusercontent.com/17875992/174453165-2ab9c26b-14da-4728-bec3-710166d12f7b.gif)
-
+## Steps performed by the algorithm
+1. Register all atlas images to the image to be segmented (target image) and resample the atlas images into
+the target image space. The registration is performed using the [NiftyReg](https://github.com/KCL-BMEIS/niftyreg) library. First, an affine 
+registration is performed using reg_aladin, then a non-linear registration is performed using reg_f3d.
+2. Resample the atlas segmentations into the space of the target image using the transformation computed in step 1. This 
+is done using reg_resample from the [NiftyReg](https://github.com/KCL-BMEIS/niftyreg) library.
+3. Compute weights that indicate the similarity between the target image and each atlas image. The weights are based on
+the Local Normalized Cross Correlation (LNCC) between the target image and each atlas image.
+4. Fuse the resampled atlas segmentations using the weights computed in step 3 to obtain a probability map of the 
+segmentation of the target image for each label present in the atlas segmentations.
+5. Using an input mapping between the labels and a much smaller number of tissue classes (gray matter, white matter, 
+etc.), distribute the label probabilities to the tissue classes to create a tissues segmentation prior.
+6. Use the tissue segmentation prior and the target image as input to an Expectation Maximization algorithm to obtain
+the final tissue segmentation of the target image. This is done using the seg_EM binary from the 
+[NiftySeg](https://github.com/KCL-BMEIS/niftyseg) library.
+7. Create the final segmentation of the target image by assigning each voxel to the label with the highest probability
+that matches the tissue segmentation obtained in step 6 according to the input mapping between labels and tissue
+8. classes.
 
 ## System requirements
 ### Hardware requirements
-To run the automatic segmentation algorithms a NVIDIA GPU with at least 8GB of memory is required.
 
 The code has been tested with the configuration:
-* 12 Intel(R) Core(TM) i7-8750H CPU @ 2.20GHz
-* 1 NVIDIA GPU GeForce GTX 1070 with 8GB of memory
+* Intel(R) Core(TM) i9-9880H CPU @ 2.30GHz
 
-### Operating system requirements
-The code is supported on every operating system (OS) using docker.
-However, it has been tested only for
-* Linux Ubuntu 18.04.6 LTS
-* Linux Ubuntu 20.04.3 LTS
+### Software requirements
+* Python 3.8 or higher
+* [NiftyReg](https://github.com/KCL-BMEIS/niftyreg)
+* [NiftySeg](https://github.com/KCL-BMEIS/niftyseg)
 
-## Installation
-The installation is performed using docker:
+#### Libraries
+The following python libraries are required:
+* numpy
+* nibabel
+* scipy
+* pandas
+* numba
 
-First, install docker (see https://docs.docker.com/get-docker/).
-
-Second, install nvidia-docker (see https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
-
-### Installation of the docker image
-Install the docker image  ```twai:latest``` using
-```bash
-sh build_docker.sh
-```
-This step takes a few minutes.
-
-### Create and start a docker container
-Create a docker container for the docker image
- ```twai:latest``` that was previously built, using the command
- ```bash
-nvidia-docker run --ipc=host -it -v <repository-path>:/workspace/trustworthy-ai-fetal-brain-segmentation -v <data-path>:/data --name twai twai:latest
-```
-where ```<repository-path>``` has to be replaced by the path of the git repository on your system
-and ```<data-path>``` has to be replaced by the path of a folder containing the data to be used for segmentation.
-This step creates a docker container called ```twai```.
-
-If you have already created the docker container ```twai```, you can reuse it using the command lines
-```bash
-nvidia-docker start twai
-nvidia-docker attach twai
-```
-
-The installation has been tested for
-* Docker version 20.10.12, build e91ed57
-
+They can be installed with pip:
+```pip install numpy nibabel scipy pandas numba```
 
 ## How to use
+A test script is provided here: [run_multi_atlas_segmentation_downsampled_test.py](run_multi_atlas_segmentation_downsampled_test.py)
 
-### Automatic Fetal Brain 3D MRI Segmentation
-You can compute the automatic segmentations for the backbone AI, fallback, and trustworthy AI algorithms
- using the python script ```run_segment.py```.
+6 arguments need to be defined:
+* ```img_path```: path to the image to be segmented
+* ```mask_path```: path to the mask of the image to be segmented (1 for the region of interest, 0 for the background)
+* ```atlas_dir_list```: list of paths to the atlas folder (each atlas folder contains the atlas image and the atlas segmentation)
+* ```results_dir```: path to the folder where the results will be saved
+* ```structure_info_csv_path```: path to the csv file containing labels numbers, label names and the mapping between
+the labels in the atlas segmentations to the tissue classes, for example: 8,Right Accumbens Area,"[3, 4]"
+* ```tissue_info_csv_path```: path to the csv file containing labels and names of the tissue classes: for example: 
+3, White Matter
 
-To learn more about the usage of the script, please see
-```bash
-python run_segment.py -h
-```
- 
-We refer to the demo below for a detailed example.
+The script will create the following output in the ```results_dir```:
 
-### Demonstration: example case
-Fetal brain 3D MRI from a subset of the testing dataset can be downloaded at
-https://zenodo.org/record/6405632#.YkbWPCTMI5k
+* ```<atlas_name>``` folder for each atlas in ```atlas_dir_list```. Each folder contains the following:
+    * ```warped_atlas_image.nii.gz``` The atlas image resampled into the space of the target image
+    * ```warped_atlas_seg.nii.gz``` The atlas segmentation resampled into the space of the target image
+    * ```weights.nii.gz``` The weights computed for each atlas image
+    * some other temporary files used or created by NiftyReg
+* ```multi_atlas_tissue_prior.nii.gz``` The tissue segmentation prior
+* ```multi_atlas_tissue_seg.nii.gz``` The final tissue segmentation of the target image
+* ```final_parcellation.nii.gz``` The final parcellation (multi-atlas segmentation) of the target image
 
-Put the folder ```\sub-feta001``` of the first case in ```<data-path>``` on your system.
-
-Start and attach the docker container (see above).
-
-You can now compute the automatic segmentations for the backbone AI, fallback, and trustworthy AI algorithms using,
- inside the docker container
-```bash
-cd /workspace/trustworthy-ai-fetal-brain-segmentation
-python run_segment.py --input '/data/sub-feta001/srr.nii.gz' --mask '/data/sub-feta001/mask.nii.gz' --ga 27.9 --condition 'Spina Bifida' --output_folder 'output/sub-feta001' --bfc
-```
-This step takes several minutes.
-You may need to adapt the paths depending where the folder ```\sub-feta001``` is located inside ```<data-path>```.
-
-For more information about the argument of ```run_segment.py``` please run
-```bash
-python run_segment.py -h
-```
-The output can be found in the folder pointed by ```--output_folder``` (```output/sub-feta001'``` in the example above).
-The output folder contains three main folders of interest:
- * ```\backboneAI```: output segmentation of the deep learning method [nnU-Net][nnunet]
- * ```\fallback```: output segmentation of the atlas-based method
- * ```\trustworthyAI```: output segmentation of our trustworthy AI algorithm combining the output of the backbone AI and the fallback algorithms
- 
-Each of those folders should contain a unique segmentation file with the extension ```.nii.gz``` corresponding to the
-segmentation computed by the algorithm of the same name as the folder name.
-
-
-### Generating figures
-The figures shown in the paper can be reproduced by running
-```bash
-sh run_make_all_figures.sh
-```
-After running this command, the figures will be in the folder ```\output```.
-
-## How to cite
-If you find this research useful for your work, please give this repo a star :star: and cite
-* L. Fidon, M. Aertsen, F. Kofler, A. Bink, A. L. David, T. Deprest, D. Emam, F. Guffens, A. Jakab, G. Kasprian,
- P. Kienast, A. Melbourne, B. Menze, N. Mufti, I. Pogledic, D. Prayer, M. Stuempflen, E. Van Elslander, S. Ourselin, 
- J. Deprest, T. Vercauteren.
- [A Dempster-Shafer approach to trustworthy AI with application to fetal brain MRI segmentation][twai]
-
-```
-@article{fidon2022dempster,
-  title={A Dempster-Shafer approach to trustworthy AI with application to fetal brain MRI segmentation},
-  author={Fidon, Lucas and Aertsen, Michael and Kofler, Florian and Bink, Andrea and David, Anna L and Deprest, Thomas and Emam, Doaa and Guffens, Fr and Jakab, Andr{\'a}s and Kasprian, Gregor and others},
-  journal={arXiv preprint arXiv:2204.02779},
-  year={2022}
-}
-```
-
-[twai]: https://arxiv.org/abs/2204.02779
-[nnunet]: https://github.com/MIC-DKFZ/nnUNet
+## Options
+Multiprocessing options, parameters for Niftyreg and Niftyseg, and other options
+can be modified in the [definitions.py](src/utils/definitions.py) file.

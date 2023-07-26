@@ -19,23 +19,21 @@ RESAMPLE_METHOD = 0  # 0: nearest neighbor interpolation on label map, 1: (smoot
 # RESAMPLING HYPER-PARAMETERS
 SIGMA = 0  # Standard deviation of the Gaussian kernel used to smooth the label maps before resampling, only applies to RESAMPLE_METHOD = 1
 
+# WEIGHTS CALCULATION
+WEIGHTS_TEMPERATURE = 0.15  # Temperature parameter for the conversion from LNCC distance to weights
+
+# WHETHER To USE PREVIOUS RESULTS OF REGISTRATION, RESAMPLING, AND WEIGHTS CALCULATION
+USE_OLD_RESULTS = False
+
 # MULTIPROCESSING FOR LOOP OVER ATLASES
 MULTIPROCESSING = True
-NUM_POOLS = 14
+NUM_POOLS = 14  # More pools will require more RAM, be careful not to exceed the available RAM
 
 # IN EACH OF THE ABOVE PROCESSES, HOW MANY SUBPROCESSES should reg_aladin and reg_f3d run in parallel?
-OMP = 8
+OMP = 8  # OMP*NUM_POOLS should not exceed the number of cores available
 
-# PARENT FOLDERS
-HOME_FOLDER = '/home/aaron'
-WORKSPACE_FOLDER = os.path.join(HOME_FOLDER, 'Dropbox/KCL/Projects')
-
-# NIFTYREG_PATH = os.path.join(WORKSPACE_FOLDER, 'third-party', 'niftyreg', 'build', 'reg-apps')
-# NIFTYREG_PATH = os.path.join(
-#     WORKSPACE_FOLDER, 'trustworthy-ai-fetal-brain-segmentation',
-#     'docker', 'third-party', 'niftyreg', 'build', 'reg-apps',
-# )
-NIFTYREG_PATH = "/usr/local/bin"
-NIFTYSEG_PATH = "/usr/local/bin"
+# NIFTYREG AND NIFTYSEG PATHS
+NIFTYREG_PATH = "/usr/local/bin"  # should contain reg_aladin, reg_f3d, reg_resample binaries
+NIFTYSEG_PATH = "/usr/local/bin"  # should contain seg_EM binary
 
 

@@ -1,6 +1,6 @@
 import numpy as np
 import timeit
-from src.multi_atlas.utils import structure_seg_from_tissue_seg
+from src.multi_atlas.multi_atlas_fusion import get_structure_seg_from_tissue_seg
 import unittest
 
 FIXED_INPUT = False
@@ -11,8 +11,8 @@ if FIXED_INPUT:
     tissue_dict = {0: [0], 1: [1, 2, 3], 2: [3], 3:[3]}
 
 else:
-    size = np.array([20, 20, 10])
-    nb_structures = 16
+    size = np.array([200, 100, 10])
+    nb_structures = 160
     nb_tissues = 7
     tiss_seg = np.random.randint(0, nb_tissues+1, size=size, dtype=np.uint8)
     lab_probs = np.random.rand(*size, nb_structures)
@@ -33,7 +33,7 @@ assert(np.sum(lab_probs, axis=-1) - 1 < 1e-6).all(), "Probabilities do not sum t
 
 ## compare with nested loop method
 def nested_loop_method(tiss_seg, lab_probs, tissue_dict):
-    structure_seg = np.ones_like(tiss_seg) * -1
+    structure_seg = np.zeros_like(tiss_seg)
     sss = structure_seg.shape
     probs_idx_sorted = np.argsort(lab_probs, axis=-1)[...,::-1]
     for i in range(sss[0]):
@@ -54,9 +54,9 @@ class YourTestCase(unittest.TestCase):
     def test_check_results_and_compare_runtimes(self):
         # method 1
         start1 = timeit.default_timer()
-        structure_seg1 = structure_seg_from_tissue_seg(tiss_seg, lab_probs, tissue_dict)
+        structure_seg1 = get_structure_seg_from_tissue_seg(tiss_seg, lab_probs, tissue_dict)
         stop1 = timeit.default_timer()
-        print('\nTime structure_seg_from_tissue_seg: ', "{:.5f}".format(stop1 - start1), " seconds")
+        print('\nTime get_structure_seg_from_tissue_seg: ', "{:.5f}".format(stop1 - start1), " seconds")
 
         # method 2
         start = timeit.default_timer()
