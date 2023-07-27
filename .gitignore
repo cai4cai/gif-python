@@ -3,4 +3,4 @@
 *.pyc
 *.png
 *.pdf
-/output
+data
