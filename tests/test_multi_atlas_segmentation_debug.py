@@ -4,11 +4,14 @@ import time
 from src.multi_atlas.multi_atlas_segmentation import multi_atlas_segmentation
 from glob import glob
 
+
 root_dir = "."
 img_path = os.path.join(root_dir, "data/input/BraTS2021_00000/BraTS2021_00000_t1.nii.gz")
 mask_path = os.path.join(root_dir, "data/input/BraTS2021_00000/BraTS2021_00000_inv-tumor-mask.nii.gz")
-atlas_dir_list = [d for d in glob(os.path.join(root_dir, "data/atlases/GENFI_atlases/*")) if os.path.isdir(d)]
-results_dir = os.path.join(root_dir, "data/results/results_GENFI_atlases")
+atlas_dir_list = [d for d in glob(os.path.join(root_dir, "data/atlases/GENFI_atlases_debug/*")) if os.path.isdir(d)]
+results_dir = os.path.join(root_dir, "data/results/results_GENFI_atlases_debug")
+
+print("img_path = ", os.path.abspath(img_path))
 
 time_0 = time.time()
 pred_atlas = multi_atlas_segmentation(
