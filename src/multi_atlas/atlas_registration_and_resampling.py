@@ -9,9 +9,12 @@ from src.multi_atlas.utils import get_lncc_distance
 from src.utils.definitions import USE_OLD_RESULTS, WEIGHTS_TEMPERATURE
 
 
-def warp_atlas_and_calc_similarity_weights(atlas_dir,
-                                           img_path,
+def warp_atlas_and_calc_similarity_weights(img_path,
                                            mask_path,
+                                           atlas_name,
+                                           atlas_img_path,
+                                           atlas_seg_path,
+                                           atlas_mask_path,
                                            save_dir,
                                            ):
     """
@@ -19,17 +22,14 @@ def warp_atlas_and_calc_similarity_weights(atlas_dir,
     to transform and resample the atlas segmentation in the target space.
     Finally, compute the similarity weights between each registered atlas image and the target image.
 
-    :param atlas_dir: path to the atlas directory
     :param img_path: path to the target image
-    :param mask_path: path to the target image mask
+    :param mask_path: path to the target mask, can be None
+    :param atlas_name: name of the atlas
+    :param atlas_img_path: path to the atlas image
+    :param atlas_seg_path: path to the atlas segmentation
+    :param atlas_mask_path: path to the atlas mask, can be None
     :param save_dir: path to the directory where to save the results
     """
-
-    atlas_name = os.path.split(atlas_dir)[1]
-
-    atlas_img_path = os.path.join(atlas_dir, 'srr.nii.gz')
-    atlas_seg_path = os.path.join(atlas_dir, 'parcellation.nii.gz')
-    atlas_mask_path = os.path.join(atlas_dir, 'mask.nii.gz')
 
     save_dir_atlas = os.path.join(save_dir, "registered_atlases", atlas_name)
 

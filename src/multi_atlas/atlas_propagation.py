@@ -4,14 +4,14 @@ from src.utils.definitions import (NIFTYREG_PATH, RESAMPLE_METHOD, reg_aladin_LP
 
 
 def register_atlas_to_img(img_path,
-                           mask_path,
-                           atlas_img_path,
-                           atlas_mask_path,
-                           affine_path,
-                           affine_warped_atlas_img_path,
-                           cpp_path,
-                           warped_atlas_img_path,
-                           ):
+                          mask_path,
+                          atlas_img_path,
+                          atlas_mask_path,
+                          affine_path,
+                          affine_warped_atlas_img_path,
+                          cpp_path,
+                          warped_atlas_img_path,
+                          ):
     """
     Affine registration + non-linear registration with stationary velocity fields
     are performed to register the atlas to the image.
@@ -20,20 +20,24 @@ def register_atlas_to_img(img_path,
     print(f"Use {OMP} subprocesses in each pool")
 
     # Affine registration
-
     affine_reg_cmd = (
         f'{NIFTYREG_PATH}/reg_aladin '
         f'-ref "{img_path}" '
-        f'-rmask "{mask_path}" '
         f'-flo "{atlas_img_path}" '
-        f'-fmask "{atlas_mask_path}" '
         f'-res "{affine_warped_atlas_img_path}" '
         f'-aff "{affine_path}" '
         f'-omp {OMP} '
         f'-lp {reg_aladin_LP} '
         f'-voff '
     )
-    print(affine_reg_cmd)
+
+    # masks are optional
+    if mask_path:
+        affine_reg_cmd += f'-rmask "{mask_path}" '
+    if atlas_mask_path:
+        affine_reg_cmd += f'-fmask "{atlas_mask_path}" '
+
+    print('Affine registration command:')
     os.system(affine_reg_cmd)
 
 
@@ -53,18 +57,22 @@ def register_atlas_to_img(img_path,
         f'{NIFTYREG_PATH}/reg_f3d '
         f'-ref "{img_path}" '
         f'-flo "{atlas_img_path}" '
-        f'-rmask "{mask_path}" '
-        f'-fmask "{atlas_mask_path}" '
         f'-aff "{affine_path}" '
         f'{reg_options} '
         f'-omp {OMP} '
         f'-res "{warped_atlas_img_path}" '  # Filename of the resampled image
         f'-cpp "{cpp_path}" '  # Filename of control point grid [outputCPP.nii]
-        f'-voff'
+        f'-voff '
     )
 
-    # print('Non linear registration command line:')
-    # print(reg_cmd)
+    # masks are optional
+    if mask_path:
+        reg_cmd += f'-rmask "{mask_path}" '
+    if atlas_mask_path:
+        reg_cmd += f'-fmask "{atlas_mask_path}" '
+
+    print('Non linear registration command:')
+    print(reg_cmd)
     os.system(reg_cmd)
 
     # apply the registration to the atlas image again using reg_resample with linear interpolation

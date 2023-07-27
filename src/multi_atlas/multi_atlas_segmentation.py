@@ -18,7 +18,7 @@ if MULTIPROCESSING:
 
 def multi_atlas_segmentation(img_path,
                              mask_path,
-                             atlas_dir_list,
+                             atlas_paths_dicts_list,
                              structure_info_csv_path,
                              tissue_info_csv_path,
                              save_dir,
@@ -27,8 +27,11 @@ def multi_atlas_segmentation(img_path,
     """
     Multi-atlas segmentation using the GIF-like fusion method.
     :param img_path: Path to the input image
-    :param mask_path: Path to the input mask
-    :param atlas_dir_list: List of paths to the atlas dirs
+    :param mask_path: (optional) Path to the input mask
+    :param atlas_paths_dicts_list: List of dictionaries, each dictionary contains the name of the atlas, the path to
+        the atlas image, the path to the atlas segmentation, and (optionally) the path to the atlas mask, e.g.:
+        {"name": "atlas1", "img_path": "path/to/atlas1.nii.gz", "seg_path": "path/to/atlas1_seg.nii.gz",
+        "mask_path": "path/to/atlas1_mask.nii.gz"}
     :param structure_info_csv_path: Path to the structure info csv file that contains the label, the name and a list of
         the tissues that the structure can be part of, e.g.: 8,Right Accumbens Area,"[3, 4]"
     :param tissue_info_csv_path: Path to the tissue info csv file that contains the tissue class number, and the tissue
@@ -36,26 +39,51 @@ def multi_atlas_segmentation(img_path,
     :param save_dir: Path to the directory where the results will be saved
     """
 
+    ####################################################################################################################
+    # Check inputs
+    ####################################################################################################################
+    assert os.path.exists(img_path), f"Input image does not exist: {img_path}"
+    if mask_path is not None:
+        assert os.path.exists(mask_path), f"Input mask does not exist: {mask_path}"
+    else:
+        mask_path = None
+        print("No input mask for the target image was provided...")
+
+    for atlas_dict in atlas_paths_dicts_list:
+        assert os.path.exists(atlas_dict["img_path"]), f"Atlas image does not exist: {atlas_dict['img_path']}"
+        assert os.path.exists(atlas_dict["seg_path"]), f"Atlas segmentation does not exist: {atlas_dict['seg_path']}"
+        if "mask_path" in atlas_dict:
+            assert os.path.exists(atlas_dict["mask_path"]), f"Atlas mask does not exist: {atlas_dict['mask_path']}"
+        else:
+            atlas_dict["mask_path"] = None
+            print(f"No input mask for atlas {atlas_dict['name']} was provided...")
+
+    assert os.path.exists(structure_info_csv_path), f"Structure info csv file does not exist: {structure_info_csv_path}"
+    assert os.path.exists(tissue_info_csv_path), f"Tissue info csv file does not exist: {tissue_info_csv_path}"
+
+    ####################################################################################################################
+    # Prepare output paths
+    ####################################################################################################################
     # define the paths to the files that will be created
     multi_atlas_proba_seg_path = os.path.join(save_dir, f"multi_atlas_proba_seg.nii.gz")
     multi_atlas_tissue_prior_path = os.path.join(save_dir, f"multi_atlas_tissue_prior.nii.gz")
     multi_atlas_tissue_seg_path = os.path.join(save_dir, f"multi_atlas_tissue_seg.nii.gz")
     final_parcel_path = os.path.join(save_dir, f"final_parcellation.nii.gz")
 
-    time_0 = time.time()
-
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
-
-    img_affine = nib.load(img_path).affine
-    mask_nii = nib.load(mask_path)
-    img_mask = mask_nii.get_fdata(dtype=np.float16).astype(np.uint8)
 
     ####################################################################################################################
     # Register the atlas segmentations to the input image and compute the similarity weights
     ####################################################################################################################
-    
-    param_tuples = [(atlas_dir, img_path, mask_path, save_dir,) for atlas_dir in atlas_dir_list]
+
+    time_0 = time.time()
+    img_affine = nib.load(img_path).affine
+    mask_nii = nib.load(mask_path)
+    img_mask = mask_nii.get_fdata(dtype=np.float16).astype(np.uint8)
+
+    param_tuples = [(img_path, mask_path, atls["name"], atls["img_path"], atls["seg_path"], atls["mask_path"], save_dir)
+                    for atls in atlas_paths_dicts_list]
 
     if MULTIPROCESSING:
         with Pool(NUM_POOLS) as p:

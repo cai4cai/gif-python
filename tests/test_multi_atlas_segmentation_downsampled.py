@@ -9,11 +9,17 @@ mask_path = "../data/input/BraTS2021_00000_downsampled/BraTS2021_00000_inv-tumor
 atlas_dir_list = [d for d in glob("../data/atlases/GENFI_atlases_downsampled/*") if os.path.isdir(d)]
 results_dir = "../data/results/results_GENFI_atlases_downsampledInput"
 
+atlas_paths_dicts_list = [{'name': os.path.basename(atlas_dir),
+                           'img_path': os.path.join(atlas_dir, 'srr.nii.gz'),
+                           'seg_path': os.path.join(atlas_dir, 'parcellation.nii.gz'),
+                           'mask_path': os.path.join(atlas_dir, 'mask.nii.gz')}
+                          for atlas_dir in atlas_dir_list]
+
 time_0 = time.time()
 pred_atlas = multi_atlas_segmentation(
         img_path=img_path,
         mask_path=mask_path,
-        atlas_dir_list=atlas_dir_list,
+        atlas_paths_dicts_list=atlas_paths_dicts_list,
         structure_info_csv_path=os.path.join(os.path.dirname(atlas_dir_list[0]), 'structures_info.csv'),
         tissue_info_csv_path=os.path.join(os.path.dirname(atlas_dir_list[0]), 'tissues_info.csv'),
         save_dir=results_dir,
