@@ -94,19 +94,26 @@ def get_structure_seg_from_tissue_seg(tiss_seg, lab_probs, assigned_tissues_dict
     # loop over all voxels and check if the highest label maps to the correct tissue
     # according to assigned_tissues_dict and tiss_seg
     num_labels = lab_probs.shape[-1]
-    structure_seg = np.zeros_like(tiss_seg)
+    labels_array = list(assigned_tissues_dict.keys())
+    structure_seg = np.ones_like(tiss_seg)*-1
     range_x = range(tiss_seg.shape[0])
     range_y = range(tiss_seg.shape[1])
     range_z = range(tiss_seg.shape[2])
     for x in range_x:
         for y in range_y:
             for z in range_z:
-                    for i in range(num_labels):
-                        # get the label index with the ith-highest probability using np.argpartition
-                        lab_idx_curr = np.argpartition(lab_probs[x, y, z, :], -i - 1)[-i - 1]
+                for i in range(len(labels_array)):
+                    # get the label index with the ith-highest probability using np.argpartition
+                    lab_idx_curr = np.argpartition(lab_probs[x, y, z, :], -i - 1)[-i - 1]
+                    try:
                         assigned_tissues = assigned_tissues_dict[lab_idx_curr]
-                        if tiss_seg[x, y, z] in assigned_tissues:
-                            structure_seg[x, y, z] = lab_idx_curr
-                            break
+                    except KeyError:
+                        break  # if the label is not in the dictionary, break
+                    if tiss_seg[x, y, z] in assigned_tissues:
+                        structure_seg[x, y, z] = lab_idx_curr
+                        break
+
+    # set all voxels that are not assigned to any structure to 0
+    structure_seg[structure_seg == -1] = 0
 
     return structure_seg
