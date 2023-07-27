@@ -31,7 +31,7 @@ def warp_atlas_and_calc_similarity_weights(atlas_dir,
     atlas_seg_path = os.path.join(atlas_dir, 'parcellation.nii.gz')
     atlas_mask_path = os.path.join(atlas_dir, 'mask.nii.gz')
 
-    save_dir_atlas = os.path.join(save_dir, atlas_name)
+    save_dir_atlas = os.path.join(save_dir, "registered_atlases", atlas_name)
 
     # List of files created by reg_aladin, reg_f3d, reg_resample
     affine_path = os.path.join(save_dir_atlas, 'affine.txt')
@@ -67,7 +67,7 @@ def warp_atlas_and_calc_similarity_weights(atlas_dir,
         time_0_reg = time.time()
 
         if not os.path.exists(save_dir_atlas):
-            os.mkdir(save_dir_atlas)
+            os.makedirs(save_dir_atlas, exist_ok=True)
 
         # Register the atlas image to the image, then resample the atlas image in the image space
         affine_params_path, cpp_params_path = register_atlas_to_img(
