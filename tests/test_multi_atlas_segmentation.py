@@ -6,7 +6,7 @@ from glob import glob
 
 img_path = "../data/input/BraTS2021_00000/BraTS2021_00000_t1.nii.gz"
 mask_path = "../data/input/BraTS2021_00000/BraTS2021_00000_inv-tumor-mask.nii.gz"
-atlas_dir_list = [d for d in glob("../data/GENFI_atlases/*") if os.path.isdir(d)]
+atlas_dir_list = [d for d in glob("../data/atlases/GENFI_atlases/*") if os.path.isdir(d)]
 results_dir = "../data/results/results_GENFI_atlases"
 
 time_0 = time.time()

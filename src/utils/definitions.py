@@ -19,8 +19,18 @@ RESAMPLE_METHOD = 0  # 0: nearest neighbor interpolation on label map, 1: (smoot
 # RESAMPLING HYPER-PARAMETERS
 SIGMA = 0  # Standard deviation of the Gaussian kernel used to smooth the label maps before resampling, only applies to RESAMPLE_METHOD = 1
 
+# Local Normalized Cross-Correlation (LNCC) DISTANCE
+LNCC_SIGMA = [-2.5, -2.5, -2.5]  # Standard deviation of the Gaussian kernel used to smooth the images in mm (if > 0) or in voxels (if < 0)
+
 # WEIGHTS CALCULATION
 WEIGHTS_TEMPERATURE = 0.15  # Temperature parameter for the conversion from LNCC distance to weights
+
+# seg_EM (Expectation-Maximization to update the tissue prior)
+seg_EM_MAXIT = 30  # Maximal number of iterations
+seg_EM_MINIT = 3  # Minimal number of iterations
+seg_EM_BIAS_ORDER = 4  # Order of the bias field
+seg_EM_BIAS_THRESH = 0.05  # Threshold to stop the bias field estimation
+seg_EM_MRF_BETA = 0.1  # Weight of the MRF prior
 
 # WHETHER To USE PREVIOUS RESULTS OF REGISTRATION, RESAMPLING, AND WEIGHTS CALCULATION
 USE_OLD_RESULTS = False

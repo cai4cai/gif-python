@@ -6,41 +6,21 @@ import nibabel as nib
 
 from scipy.ndimage import gaussian_filter
 
-from src.utils.definitions import NIFTYREG_PATH, NIFTYSEG_PATH
+from src.utils.definitions import NIFTYSEG_PATH, LNCC_SIGMA, seg_EM_MAXIT, seg_EM_MINIT, seg_EM_BIAS_ORDER, \
+    seg_EM_BIAS_THRESH, seg_EM_MRF_BETA
 
 
 def nibabel_load_and_get_fdata(filepath, dtype=np.float32):
+    """
+    Load a nifti file and return the data as a numpy array of the specified dtype.
+    :param filepath: path to the nifti file
+    :param dtype: dtype of the returned numpy array
+    :return: numpy array of the specified dtype
+    """
     if dtype == np.uint8:
         return nib.load(filepath).get_fdata(dtype=np.float16).astype(dtype)
     else:
         return nib.load(filepath).get_fdata(dtype=dtype).astype(dtype)
-
-
-def compute_disp_from_cpp(cpp_path, ref_path, save_disp_path):
-    save_folder = os.path.split(save_disp_path)[0]
-
-    # Convert the cpp into a deformation field
-    save_def_path = os.path.join(save_folder, 'tmp_def.nii.gz')
-    cmd = '%s/reg_transform -ref %s -def %s %s > /dev/null' % (NIFTYREG_PATH, ref_path, cpp_path, save_def_path)
-    os.system(cmd)
-
-    # Create the identity transformation to get the displacement
-    cpp_id = os.path.join(save_folder, 'output_cpp_identity.nii.gz')
-    res_id = os.path.join(save_folder, 'srr_identity.nii.gz')
-    cmd = '%s/reg_f3d -ref %s -flo %s -res %s -cpp %s -be 1. -le 0. -ln 3 -voff' % \
-          (NIFTYREG_PATH, ref_path, ref_path, res_id, cpp_id)
-    os.system(cmd)
-    save_id_path = os.path.join(save_folder, 'tmp_id_def.nii.gz')
-    cmd = '%s/reg_transform -ref %s -def %s %s > /dev/null' % (NIFTYREG_PATH, ref_path, cpp_id, save_id_path)
-    os.system(cmd)
-
-    # Substract the identity to get the displacement field
-    deformation_nii = nib.load(save_def_path)
-    deformation = deformation_nii.get_fdata().astype(np.float32)
-    identity = nib.load(save_id_path).get_fdata().astype(np.float32)
-    disp = deformation - identity
-    disp_nii = nib.Nifti1Image(disp, deformation_nii.affine)
-    nib.save(disp_nii, save_disp_path)
 
 
 def gaussian_smooth_with_mask(input, mask, **kwargs):
@@ -51,8 +31,8 @@ def gaussian_smooth_with_mask(input, mask, **kwargs):
         here: https://stackoverflow.com/a/36307291
 
         :param input: input image
-        :param mask: input image mask
-        :param kwargs: arguments for gaussian_filter
+        :param mask: mask of the input image
+        :param kwargs: arguments for scipy's gaussian_filter function
         :return: smoothed image
         """
 
@@ -75,8 +55,8 @@ def gaussian_smooth_with_mask(input, mask, **kwargs):
         return smoothed
 
 
-def get_lncc_distance(image, mask, atlas_warped_image, save_folder_path, affine, spacing):
-    '''
+def get_lncc_distance(image, mask, atlas_warped_image, spacing):
+    """
     Compute the Local Normalized Cross Correlation (LNCC) distance between the input image and the atlas image.
     LNCC is defined as local covariance divided by the square root of the product of local variances.
     covariance(I, A) = mean(I*A) - mean(I)*mean(A)
@@ -89,16 +69,14 @@ def get_lncc_distance(image, mask, atlas_warped_image, save_folder_path, affine,
     https://discovery.ucl.ac.uk/id/eprint/1501070/1/paper888.pdf
 
     :param image: input image
-    :param mask: input image mask
+    :param mask: mask of the input image
     :param atlas_warped_image: atlas image warped to the input image space
-    :param save_folder_path: path to the folder where the LNCC distance will be saved
-    :param affine: affine matrix of the input image
     :param spacing: spacing of the input image
     :return: LNCC distance
-    '''
+    """
 
     # Gaussian kernel standard deviation in mm (if > 0) or in voxels (if < 0)
-    kernel_std = [-2.5, -2.5, -2.5]
+    kernel_std = LNCC_SIGMA
     # convert kernel standard deviation from mm to voxels
     kernel_std = np.array([abs(k/s) if k < 0 else k for k, s in zip(kernel_std, spacing)])
 
@@ -138,9 +116,6 @@ def get_lncc_distance(image, mask, atlas_warped_image, save_folder_path, affine,
     lncc = covar / variances_prod
     lncc_distance = 1.0 - lncc
 
-    # # save lncc_distance
-    # nib.save(nib.Nifti1Image(lncc_distance, affine=affine), os.path.join(save_folder_path, 'lncc_distance.nii.gz'))
-
     return lncc_distance
 
 
@@ -148,14 +123,14 @@ def seg_EM(input_filename,
            output_filename,
            mask_filename,
            prior_filename,
-           verbose_level,
-           max_iterations,
-           min_iterations,
-           bias_field_order,
-           bias_field_thresh,
-           mrf_beta):
+           verbose_level=0,
+           max_iterations=seg_EM_MAXIT,
+           min_iterations=seg_EM_MINIT,
+           bias_field_order=seg_EM_BIAS_ORDER,
+           bias_field_thresh=seg_EM_BIAS_THRESH,
+           mrf_beta=seg_EM_MRF_BETA):
     """
-    Performs EM segmentation on the atlas using niftyseg.
+    Performs EM segmentation on the atlas using Niftyseg.
     """
 
     command = [os.path.join(NIFTYSEG_PATH, 'seg_EM'),

@@ -55,7 +55,7 @@ def multi_atlas_segmentation(img_path,
     # Register the atlas segmentations to the input image and compute the similarity weights
     ####################################################################################################################
     
-    param_tuples = [(atlas_dir, save_dir, img_path, mask_path,) for atlas_dir in atlas_dir_list]
+    param_tuples = [(atlas_dir, img_path, mask_path, save_dir,) for atlas_dir in atlas_dir_list]
 
     if MULTIPROCESSING:
         with Pool(NUM_POOLS) as p:
@@ -163,13 +163,8 @@ def multi_atlas_segmentation(img_path,
     seg_EM_params = {'input_filename': img_path,
                      'output_filename': multi_atlas_tissue_seg_path,
                      'mask_filename': mask_path,
-                     'prior_filename': multi_atlas_tissue_prior_path, 
-                     'verbose_level': 0,
-                     'max_iterations': 30, 
-                     'min_iterations': 3, 
-                     'bias_field_order': 4, 
-                     'bias_field_thresh': 0.05,
-                     'mrf_beta': 0.1}
+                     'prior_filename': multi_atlas_tissue_prior_path,
+                     }
 
     # run seg_EM algorithm
     seg_EM(**seg_EM_params)
