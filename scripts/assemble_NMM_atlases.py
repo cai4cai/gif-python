@@ -52,23 +52,25 @@ for d in first_dirs:
     atlas_name = sub_ds_name.split("_")[0] + "_" + name
     print("atlas name = ", atlas_name)
 
-    # remove fileparts before "data" from the atlas_dir
-
-
     # copy the files to the atlas directory while and add dictionary to list
     atlas_dir = os.path.join(out_atlas_dir, sub_ds_name.split("_")[0] + "_" + name)
     relative_atlas_dir = os.path.join(".", "data", atlas_dir.split("data"+os.sep)[1])
     os.makedirs(atlas_dir, exist_ok=True)
     new_dict = {"name": atlas_name}
     for f in files:
-        shutil.copy(f, atlas_dir)
         if f.endswith("_seg.nii.gz"):
+            dst = os.path.join(atlas_dir, "parcellation.nii.gz")
             new_dict["seg_path"] = os.path.join(relative_atlas_dir, os.path.basename(f))
+            shutil.copy(f, dst)
         elif f.endswith("_LabelMap.xml"):
             # no need to copy the xml file
             pass
-        else:
+        elif f.endswith(".nii.gz"):
+            dst = os.path.join(atlas_dir, "srr.nii.gz")
             new_dict["img_path"] = os.path.join(relative_atlas_dir, os.path.basename(f))
+            shutil.copy(f, dst)
+        else:
+            raise Exception("Unexpected file name: " + f)
 
     atlas_paths_dicts_list.append(new_dict)
 
