@@ -4,80 +4,59 @@ from natsort import natsorted
 import shutil
 import pandas as pd
 
-nmm_ds_path = "/mnt/nas1/Datasets/NMM_BrainParc/2022-11-20_Neuromorphometrics-AcademicDataset"
+nmm_ds_path = "/mnt/nas1/Datasets/NMM_BrainParc/NMM_BrainParc_clean"
 
 out_atlas_dir = "/home/aaron/Dropbox/KCL/Projects/gif-python/data/atlases/NMM_atlases"
+
+images = [i for i in natsorted(glob(os.path.join(nmm_ds_path, "images", "*_0000.nii.gz")))]
+segmentations = [i for i in natsorted(glob(os.path.join(nmm_ds_path, "labels", "*seg.nii.gz")))]
+label_maps = [i for i in natsorted(glob(os.path.join(nmm_ds_path, "xml", "*.xml")))]
+
+assert(len(images) == len(segmentations) == len(label_maps)), (("Expected the same number of images, segmentations and "
+                                                               "label maps, found ")
+                                                               + str(len(images)) + " images, "
+                                                               + str(len(segmentations)) + " segmentations and "
+                                                               + str(len(label_maps)) + " label maps.")
 
 # create atlas dictionary list
 atlas_paths_dicts_list = []
 
 sub_ds = [d for d in natsorted(glob(os.path.join(nmm_ds_path, "*"))) if os.path.isdir(d)]
 
-first_dirs = []
-for sub in sub_ds:
-    atlas_dirs = [d for d in natsorted(glob(os.path.join(sub, "*"))) if os.path.isdir(d)]
-    first_dirs.append(atlas_dirs[0])
 
-for d in first_dirs:
-    print(d)
-    files = glob(os.path.join(d, "*"))
-
-    for f in files:
-        print(os.path.basename(f))
-
-    assert(len(files) == 3), "Expected 3 files in each directory, found " + str(len(files)) + " files."
-
-    # check that the files are named correctly
-
-    # one file needs to end on "_seg.nii.gz"
-    assert(any([f.endswith("_seg.nii.gz") for f in files])), "Expected one file to end on '_seg.nii.gz', found none."
-
-    # one file needs to end on "_LabelMap.xml"
-    assert(any([f.endswith("_LabelMap.xml") for f in files])), "Expected one file to end on '_LabelMap.xml', found none."
-
-    # the remaining file needs to end on ".nii.gz"
-    assert(any([f.endswith(".nii.gz") and not f.endswith("_seg.nii.gz") for f in files])), "Expected one file to end on '.nii.gz', found none."
+for i, (img_p, seg_p, xml_p) in enumerate(zip(images, segmentations, label_maps)):
+    print(img_p)
+    print(seg_p)
+    print(xml_p)
 
     # get the sub-dataset name from the path
-    sub_ds_name = d.split("/")[-2]
+    sub_ds_name = os.path.basename(img_p).split("_")[0]
 
-    # assemble the atlas name from the file names
-    name = ""
-    for char1, char2, char3 in zip(*[os.path.basename(f) for f in files]):
-        if char1 == char2 and char2 == char3:
-            name += char1
-        else:
-            break
-
-    atlas_name = sub_ds_name.split("_")[0] + "_" + name
+    # get the atlas name from the path
+    atlas_name = os.path.basename(img_p).split("_0000")[0]
     print("atlas name = ", atlas_name)
 
     # copy the files to the atlas directory while and add dictionary to list
-    atlas_dir = os.path.join(out_atlas_dir, sub_ds_name.split("_")[0] + "_" + name)
+    atlas_dir = os.path.join(out_atlas_dir, atlas_name)
     relative_atlas_dir = os.path.join(".", "data", atlas_dir.split("data"+os.sep)[1])
     os.makedirs(atlas_dir, exist_ok=True)
     new_dict = {"name": atlas_name}
-    for f in files:
-        if f.endswith("_seg.nii.gz"):
-            dst = os.path.join(atlas_dir, "parcellation.nii.gz")
-            new_dict["seg_path"] = os.path.join(relative_atlas_dir, os.path.basename(f))
-            shutil.copy(f, dst)
-        elif f.endswith("_LabelMap.xml"):
-            # no need to copy the xml file
-            pass
-        elif f.endswith(".nii.gz"):
-            dst = os.path.join(atlas_dir, "srr.nii.gz")
-            new_dict["img_path"] = os.path.join(relative_atlas_dir, os.path.basename(f))
-            shutil.copy(f, dst)
-        else:
-            raise Exception("Unexpected file name: " + f)
+
+    # copy the segmentation
+    dst_seg = os.path.join(atlas_dir, "parcellation.nii.gz")
+    new_dict["seg_path"] = dst_seg
+    shutil.copy(seg_p, dst_seg)
+
+    # copy the image
+    dst_img = os.path.join(atlas_dir, "srr.nii.gz")
+    new_dict["img_path"] = dst_img
+    shutil.copy(img_p, dst_img)
 
     atlas_paths_dicts_list.append(new_dict)
 
     print("atlas directory = ", atlas_dir)
     print("atlas dictionary = ", new_dict)
 
-    break
 
 pd.DataFrame(atlas_paths_dicts_list).to_csv(os.path.join(out_atlas_dir, "atlas_paths.csv"), index=False)
 

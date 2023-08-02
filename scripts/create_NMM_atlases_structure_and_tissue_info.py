@@ -65,14 +65,6 @@ for i, (img_p, seg_p, xml_p) in enumerate(zip(images, segmentations, label_maps)
             if desc.replace(" ", "") == desc2.replace(" ", ""):
                 # print(desc)
                 nb_matches += 1
-                # consec_label = GENFI_descs[GENFI_descs['description'] == desc]['consecutive labels'].iloc[0]
-                # ind = df[df['description'] == desc]['consecutive labels'].index.values[0]
-                # NMM_label = list(nmm_label_dict.keys())[list(nmm_label_dict.values()).index(desc2)]
-                # # print(consec_label, NMM_label, ind)
-                # df.loc[ind, new_col] = NMM_label
-                #
-                # if NMM_label not in labels_found_in_seg:
-                #     print(f"Matched label {NMM_label}:{desc2} not found in grtr data...")
 
                 # get the tissue types from the GENFI dataset
                 tissue = df_GENFI[df_GENFI['name'] == desc]['tissues'].iloc[0]
