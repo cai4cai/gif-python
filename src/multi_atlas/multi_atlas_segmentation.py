@@ -209,8 +209,8 @@ def multi_atlas_segmentation(img_path,
     time_0_tissue_prior = time.time()
 
     multi_atlas_tissue_prior = get_multi_atlas_tissue_prior(multi_atlas_proba_seg,
+                                                            np.array(list(unique_labels)),
                                                             structure_dict,
-                                                            num_class,
                                                             num_tissue,
                                                             img_mask,
                                                             )
@@ -252,7 +252,11 @@ def multi_atlas_segmentation(img_path,
     # the assigned tissues corresponds to the tissue in multi_atlas_tissue_seg
     print(f"Running structure segmentation...")
     t_0_struct_seg = time.time()
-    final_parcellation = get_structure_seg_from_tissue_seg(multi_atlas_tissue_seg, multi_atlas_proba_seg, structure_dict['tissues'])
+    final_parcellation = get_structure_seg_from_tissue_seg(multi_atlas_tissue_seg,
+                                                           multi_atlas_proba_seg,
+                                                           np.array(list(unique_labels)),
+                                                           structure_dict['tissues'])
+
     print(f"Running structure segmentation completed after {time.time() - t_0_struct_seg:.3f} seconds")
 
     # save the final parcellation
