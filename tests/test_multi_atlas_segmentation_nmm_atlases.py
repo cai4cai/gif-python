@@ -7,7 +7,7 @@ from glob import glob
 img_path = "../data/input/BraTS2021_00000/BraTS2021_00000_t1.nii.gz"
 mask_path = "../data/input/BraTS2021_00000/BraTS2021_00000_inv-tumor-mask.nii.gz"
 atlas_dir_list = [d for d in glob("../data/atlases/NMM_atlases/*") if os.path.isdir(d)]
-results_dir = "../data/results/results_NMM_atlases_downsampledInput"
+results_dir = "../data/results/results_NMM_atlases"
 
 atlas_paths_dicts_list = [{'name': os.path.basename(atlas_dir),
                            'img_path': os.path.join(atlas_dir, 'srr_mni_aligned.nii.gz'),
