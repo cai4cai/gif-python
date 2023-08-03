@@ -16,14 +16,14 @@ def get_multi_atlas_proba_seg(warped_atlases, weights, labels_array, multi_atlas
     :return: multi_atlas_proba_seg: H x W x D x num_class
     """
     for x in prange(warped_atlases.shape[1]):
-        # print(x)
+        # print(x, "/", warped_atlases.shape[1])
         for y in range(warped_atlases.shape[2]):
             for z in range(warped_atlases.shape[3]):
-                for l in labels_array:
+                for l_idx in range(len(labels_array)):
                     for a in range(warped_atlases.shape[0]):
 
-                        if warped_atlases[a, x, y, z] == l:
-                            multi_atlas_proba_seg[x, y, z, l] += weights[a, x, y, z]
+                        if warped_atlases[a, x, y, z] == labels_array[l_idx]:
+                            multi_atlas_proba_seg[x, y, z, l_idx] += weights[a, x, y, z]
                 # where ever the sum of probabilities is 0, set the first class (background) to 1
                 if np.sum(multi_atlas_proba_seg[x, y, z, :]) == 0:
                     multi_atlas_proba_seg[x, y, z, 0] = 1
@@ -33,15 +33,15 @@ def get_multi_atlas_proba_seg(warped_atlases, weights, labels_array, multi_atlas
 
 def get_multi_atlas_tissue_prior(
                                 multi_atlas_proba_seg,
+                                labels_array,
                                 structure_dict,
-                                num_class,
                                 num_tissue,
                                 mask):
     """
     Calculate the multi-atlas tissue prior by distributing the probabilities of each structure to its assigned tissues
     :param multi_atlas_proba_seg: numpy array of probabilities for each structure, shape H x W x D x num_class
+    :param labels_array: array of labels to consider
     :param structure_dict: dictionary mapping structures to tissues, e.g. {'tissues': {0: [0, 1], 1: [2, 3], 2: [4, 5]}}
-    :param num_class: number of structures
     :param num_tissue: number of tissues
     :param mask: target image mask, shape H x W x D
 
@@ -49,13 +49,13 @@ def get_multi_atlas_tissue_prior(
     """
 
     multi_atlas_tissue_prior = np.zeros(tuple(multi_atlas_proba_seg.shape[:3] + (num_tissue,)), dtype=np.float32)
-
-    for l in range(num_class):
+    for l_idx in range(len(labels_array)):
+        l = labels_array[l_idx]
         if l not in structure_dict['tissues']:
             continue
         assigned_tissues = structure_dict['tissues'][l]
         for t in assigned_tissues:
-            multi_atlas_tissue_prior[:, :, :, t] += multi_atlas_proba_seg[:, :, :, l] / len(assigned_tissues) # H x W x D x num_tissue
+            multi_atlas_tissue_prior[:, :, :, t] += multi_atlas_proba_seg[:, :, :, l_idx] / len(assigned_tissues)  # H x W x D x num_tissue
 
     # set the background tissue class to the inverse of the mask
     multi_atlas_tissue_prior[:, :, :, 0] = 1-mask
@@ -78,7 +78,7 @@ def get_multi_atlas_tissue_prior(
     return multi_atlas_tissue_prior
 
 
-def get_structure_seg_from_tissue_seg(tiss_seg, lab_probs, assigned_tissues_dict):
+def get_structure_seg_from_tissue_seg(tiss_seg, lab_probs, labels_array, assigned_tissues_dict):
     """
     Assigns a label to each voxel in tiss_seg based on the highest probability in lab_probs, and the assigned_tissues_dict.
     That means for each voxel, the highest label from lab_probs is checked against the assigned_tissues_dict to see if
@@ -87,14 +87,13 @@ def get_structure_seg_from_tissue_seg(tiss_seg, lab_probs, assigned_tissues_dict
 
     :param tiss_seg: tissue segmentation, shape (x, y, z)
     :param lab_probs: label probabilities, shape (x, y, z, num_labels)
+    :param labels_array: array of labels to consider
     :param assigned_tissues_dict: dictionary mapping labels to tissues, e.g. {0: [0, 1], 1: [2, 3], 2: [4, 5]}
 
     :return: structure segmentation, shape (x, y, z)
     """
     # loop over all voxels and check if the highest label maps to the correct tissue
     # according to assigned_tissues_dict and tiss_seg
-    num_labels = lab_probs.shape[-1]
-    labels_array = list(assigned_tissues_dict.keys())
     structure_seg = np.ones_like(tiss_seg)*-1
     range_x = range(tiss_seg.shape[0])
     range_y = range(tiss_seg.shape[1])
@@ -102,15 +101,16 @@ def get_structure_seg_from_tissue_seg(tiss_seg, lab_probs, assigned_tissues_dict
     for x in range_x:
         for y in range_y:
             for z in range_z:
-                for i in range(len(labels_array)):
+                for it in range(len(labels_array)):
                     # get the label index with the ith-highest probability using np.argpartition
-                    lab_idx_curr = np.argpartition(lab_probs[x, y, z, :], -i - 1)[-i - 1]
+                    lab_idx_curr = np.argpartition(lab_probs[x, y, z, :], -it - 1)[-it - 1]
                     try:
-                        assigned_tissues = assigned_tissues_dict[lab_idx_curr]
+                        assigned_tissues = assigned_tissues_dict[labels_array[lab_idx_curr]]
                     except KeyError:
+                        # print('Label {} at iteration {} not in assigned_tissues_dict'.format(lab_idx_curr, i))
                         break  # if the label is not in the dictionary, break
                     if tiss_seg[x, y, z] in assigned_tissues:
-                        structure_seg[x, y, z] = lab_idx_curr
+                        structure_seg[x, y, z] = labels_array[lab_idx_curr]
                         break
 
     # set all voxels that are not assigned to any structure to 0

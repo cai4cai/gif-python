@@ -74,6 +74,60 @@ def multi_atlas_segmentation(img_path,
         os.mkdir(save_dir)
 
     ####################################################################################################################
+    # read structure and tissue info
+    ####################################################################################################################
+
+    tissue_dict = pd.read_csv(tissue_info_csv_path, index_col="label").to_dict(orient='dict')
+    num_tissue = len(tissue_dict['name'])
+
+    structure_df = pd.read_csv(structure_info_csv_path, index_col="label", converters={'tissues': literal_eval})
+    structure_dict = structure_df.to_dict(orient='dict')
+
+    ####################################################################################################################
+    # check that all labels present in the atlases are present in the structure info csv file
+    ####################################################################################################################
+
+    unique_labels = set()
+    # number of labels in the atlas segmentations
+    for atlas_dict in atlas_paths_dicts_list:
+        atlas_seg = nib.load(atlas_dict["seg_path"]).get_fdata(dtype=np.float16).astype(np.uint8)
+        unique_labels_curr_atlas = np.unique(atlas_seg)
+        unique_labels.update(unique_labels_curr_atlas)
+
+        # check that all labels present in the atlas are present in the structure info csv file
+        set_of_labels_not_in_structure_info_csv = set(unique_labels_curr_atlas) - set(structure_df.index)
+        assert len(set_of_labels_not_in_structure_info_csv) == 0, f"The following labels are present in the atlas segmentation {atlas_dict['seg_path']}, but not in the structure info csv file {structure_info_csv_path}: \n{set_of_labels_not_in_structure_info_csv}."
+
+        # check if all labels present in the structure info csv file are present in the atlas
+        set_of_labels_not_in_atlas = set(structure_df.index) - set(unique_labels_curr_atlas)
+        if not len(set_of_labels_not_in_atlas) == 0:
+            print(f"The following labels are present in the structure info csv file {structure_info_csv_path}, but not in the atlas segmentation {atlas_dict['seg_path']}: \n{set_of_labels_not_in_atlas}.")
+
+    num_unique_labels_all_atlases = len(unique_labels)
+    print(f"Number of unique labels in all atlases: {num_unique_labels_all_atlases}")
+
+    # number of labels in the structure info csv file
+    num_label_structure = len(structure_df.index)
+    print(f"Number of unique labels in the structure info csv file: {num_label_structure}")
+
+    # length of label dimension
+    num_class = num_unique_labels_all_atlases
+
+    # check that the tissues in the structure info csv file are present in the tissue info csv file
+    unique_tissues_in_structure_info_csv = np.unique(np.concatenate(structure_df["tissues"].values))
+    tissues_in_tissue_info_csv = np.array(list(tissue_dict["name"].keys()))
+    set_of_tissues_not_in_tissue_info_csv = set(unique_tissues_in_structure_info_csv) - set(tissues_in_tissue_info_csv)
+    assert len(set_of_tissues_not_in_tissue_info_csv) == 0, f"The following tissues are present in the structure info csv file {structure_info_csv_path}, but not in the tissue info csv file {tissue_info_csv_path}: \n{set_of_tissues_not_in_tissue_info_csv}."
+    set_of_tissues_not_in_structure_info_csv = set(tissues_in_tissue_info_csv) - set(unique_tissues_in_structure_info_csv)
+    if not len(set_of_tissues_not_in_structure_info_csv) == 0:
+        print(f"The following tissues are present in the tissue info csv file {tissue_info_csv_path}, but no structure is assigned to this label in the structure info csv file {structure_info_csv_path}: \n{set_of_tissues_not_in_structure_info_csv}.")
+
+    num_unique_tissues_in_structure_info_csv = len(unique_tissues_in_structure_info_csv)
+    print(f"Number of unique tissues in the structure info csv file: {num_unique_tissues_in_structure_info_csv}")
+    num_unique_tissues_in_tissue_info_csv = len(tissues_in_tissue_info_csv)
+    print(f"Number of unique tissues in the tissue info csv file: {num_unique_tissues_in_tissue_info_csv}")
+
+    ####################################################################################################################
     # Register the atlas segmentations to the input image and compute the similarity weights
     ####################################################################################################################
 
@@ -127,19 +181,9 @@ def multi_atlas_segmentation(img_path,
 
     print(f"Weights loading completed after {time.time() - t_0_weight:.3f} seconds")
 
+    #################################################################################################################### 
+    # calculate the multi-atlas probabilities for each structure  # H x W x D x num_class
     ####################################################################################################################
-    # read structure and tissue info
-    ####################################################################################################################
-
-    tissue_dict = pd.read_csv(tissue_info_csv_path, index_col="label").to_dict(orient='dict')
-    num_tissue = len(tissue_dict['name'])
-
-    structure_df = pd.read_csv(structure_info_csv_path, index_col="label", converters={'tissues': literal_eval})
-    structure_dict = structure_df.to_dict(orient='dict')
-
-    # length of label dimension (assuming the labels are consecutive)
-    num_class = np.max(list(structure_dict['name'].keys())) + 1
-
     print(f"Load the warped atlas segmentations from disk ...")
     t_0_load_warped_atlases = time.time()
     with Pool(NUM_POOLS) as p:
@@ -148,14 +192,10 @@ def multi_atlas_segmentation(img_path,
 
     print(f"Warped atlas segmentations loading completed after {time.time() - t_0_load_warped_atlases:.3f} seconds")
 
-    #################################################################################################################### 
-    # calculate the multi-atlas probabilities for each structure  # H x W x D x num_class
-    ####################################################################################################################
-    
     multi_atlas_proba_seg = np.zeros((*warped_atlases.shape[1:], num_class), dtype=np.float32)
     multi_atlas_proba_seg = get_multi_atlas_proba_seg(warped_atlases,
                                                       weights,
-                                                      np.array(list(structure_dict['name'].keys())),
+                                                      np.array(list(unique_labels)),
                                                       multi_atlas_proba_seg)
 
     # # save the merged probabilities (time consuming, since H x W x D x num_class is large)
@@ -169,8 +209,8 @@ def multi_atlas_segmentation(img_path,
     time_0_tissue_prior = time.time()
 
     multi_atlas_tissue_prior = get_multi_atlas_tissue_prior(multi_atlas_proba_seg,
+                                                            np.array(list(unique_labels)),
                                                             structure_dict,
-                                                            num_class,
                                                             num_tissue,
                                                             img_mask,
                                                             )
@@ -212,7 +252,11 @@ def multi_atlas_segmentation(img_path,
     # the assigned tissues corresponds to the tissue in multi_atlas_tissue_seg
     print(f"Running structure segmentation...")
     t_0_struct_seg = time.time()
-    final_parcellation = get_structure_seg_from_tissue_seg(multi_atlas_tissue_seg, multi_atlas_proba_seg, structure_dict['tissues'])
+    final_parcellation = get_structure_seg_from_tissue_seg(multi_atlas_tissue_seg,
+                                                           multi_atlas_proba_seg,
+                                                           np.array(list(unique_labels)),
+                                                           structure_dict['tissues'])
+
     print(f"Running structure segmentation completed after {time.time() - t_0_struct_seg:.3f} seconds")
 
     # save the final parcellation
