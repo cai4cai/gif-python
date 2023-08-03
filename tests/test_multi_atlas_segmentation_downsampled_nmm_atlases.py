@@ -10,8 +10,8 @@ atlas_dir_list = [d for d in glob("../data/atlases/NMM_atlases/*") if os.path.is
 results_dir = "../data/results/results_NMM_atlases_downsampledInput"
 
 atlas_paths_dicts_list = [{'name': os.path.basename(atlas_dir),
-                           'img_path': os.path.join(atlas_dir, 'srr.nii.gz'),
-                           'seg_path': os.path.join(atlas_dir, 'parcellation.nii.gz')}
+                           'img_path': os.path.join(atlas_dir, 'srr_mni_aligned.nii.gz'),
+                           'seg_path': os.path.join(atlas_dir, 'parcellation_mni_aligned.nii.gz')}
                           for atlas_dir in atlas_dir_list]
 
 time_0 = time.time()
