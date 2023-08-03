@@ -75,6 +75,13 @@ def get_lncc_distance(image, mask, atlas_warped_image, spacing):
     :return: LNCC distance
     """
 
+    # if there is a singleton dimension in the channel axis, remove it
+    if image.ndim == 4 and image.shape[3] == 1:
+        image = image.squeeze(axis=3)
+
+    if not mask:
+        mask = np.ones_like(image)
+
     # Gaussian kernel standard deviation in mm (if > 0) or in voxels (if < 0)
     kernel_std = LNCC_SIGMA
     # convert kernel standard deviation from mm to voxels
@@ -136,7 +143,6 @@ def seg_EM(input_filename,
     command = [os.path.join(NIFTYSEG_PATH, 'seg_EM'),
                '-in', input_filename,
                '-out', output_filename,
-               '-mask', mask_filename,
                '-priors4D', prior_filename,
                '-v', str(verbose_level),
                '-max_iter', str(max_iterations),
@@ -144,6 +150,9 @@ def seg_EM(input_filename,
                '-bc_order', str(bias_field_order),
                '-bc_thresh', str(bias_field_thresh),
                '-mrf_beta', str(mrf_beta)]
+
+    if mask_filename:
+        command.extend(['-mask', mask_filename])
 
     # Run the command
     subprocess.call(command)
