@@ -15,6 +15,8 @@ from src.utils.definitions import MULTIPROCESSING, NUM_POOLS
 if MULTIPROCESSING:
     from multiprocessing import Pool
 
+nib.Nifti1Header.quaternion_threshold = -np.finfo(np.float32).eps * 10  # CANDI dataset doesn't pass this check
+
 
 def multi_atlas_segmentation(img_path,
                              mask_path,
@@ -133,8 +135,13 @@ def multi_atlas_segmentation(img_path,
 
     time_0 = time.time()
     img_affine = nib.load(img_path).affine
-    mask_nii = nib.load(mask_path)
-    img_mask = mask_nii.get_fdata(dtype=np.float16).astype(np.uint8)
+
+    # load the mask
+    if mask_path:
+        mask_nii = nib.load(mask_path)
+        img_mask = mask_nii.get_fdata(dtype=np.float16).astype(np.uint8)
+    else:
+        img_mask = None
 
     param_tuples = [(img_path, mask_path, atls["name"], atls["img_path"], atls["seg_path"], atls["mask_path"], save_dir)
                     for atls in atlas_paths_dicts_list]

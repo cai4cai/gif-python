@@ -36,7 +36,7 @@ def get_multi_atlas_tissue_prior(
                                 labels_array,
                                 structure_dict,
                                 num_tissue,
-                                mask):
+                                mask=None):
     """
     Calculate the multi-atlas tissue prior by distributing the probabilities of each structure to its assigned tissues
     :param multi_atlas_proba_seg: numpy array of probabilities for each structure, shape H x W x D x num_class
@@ -57,8 +57,9 @@ def get_multi_atlas_tissue_prior(
         for t in assigned_tissues:
             multi_atlas_tissue_prior[:, :, :, t] += multi_atlas_proba_seg[:, :, :, l_idx] / len(assigned_tissues)  # H x W x D x num_tissue
 
-    # set the background tissue class to the inverse of the mask
-    multi_atlas_tissue_prior[:, :, :, 0] = 1-mask
+    # set the background tissue class to 1 in all voxels that are not in the mask
+    if mask is not None:
+        multi_atlas_tissue_prior[mask == 0, 0] = 1
 
     # set voxels that are not assigned to any tissue to the background tissue
     multi_atlas_tissue_prior[np.sum(multi_atlas_tissue_prior, axis=-1) == 0, 0] = 1
