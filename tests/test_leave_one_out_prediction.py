@@ -11,7 +11,7 @@ for i in range(len(atlas_dir_list)):
     img_path = os.path.join(atlas_dir_list[i], 'srr_mni_aligned.nii.gz')
     mask_path = None  # these atlases don't have masks
 
-    results_dir = "../data/results/results_NMM_atlases_downsampledInput_leaveoneout"
+    results_dir = "../data/results/results_NMM_atlases_leaveoneout/" + os.path.basename(atlas_dir_list[i])
 
     # assemble atlas paths dicts list, excluding the atlas we're leaving out
     atlas_paths_dicts_list = [{'name': os.path.basename(atlas_dir),
