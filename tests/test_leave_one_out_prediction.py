@@ -4,14 +4,14 @@ import time
 from src.multi_atlas.multi_atlas_segmentation import multi_atlas_segmentation
 from glob import glob
 
-atlas_dir_list = [d for d in glob("../data/atlases/NMM_atlases/*") if os.path.isdir(d)]
+atlas_dir_list = [d for d in glob("./data/atlases/NMM_atlases/*") if os.path.isdir(d)]
 
 # loop over all atlases, predict with all other atlases
 for i in range(len(atlas_dir_list)):
     img_path = os.path.join(atlas_dir_list[i], 'srr_mni_aligned.nii.gz')
     mask_path = None  # these atlases don't have masks
 
-    results_dir = "../data/results/results_NMM_atlases_downsampledInput_leaveoneout"
+    results_dir = "./data/results/results_NMM_atlases_downsampledInput_leaveoneout"
 
     # assemble atlas paths dicts list, excluding the atlas we're leaving out
     atlas_paths_dicts_list = [{'name': os.path.basename(atlas_dir),
