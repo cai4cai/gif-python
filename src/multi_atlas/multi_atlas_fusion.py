@@ -15,17 +15,23 @@ def get_multi_atlas_proba_seg(warped_atlases, weights, labels_array, multi_atlas
         initialized outside of the function because numba does not support numpy.zeros in non-python mode)
     :return: multi_atlas_proba_seg: H x W x D x num_class
     """
+
+    sum_warped_atlases = np.sum(warped_atlases, axis=0)
+
     for x in prange(warped_atlases.shape[1]):
         # print(x, "/", warped_atlases.shape[1])
         for y in range(warped_atlases.shape[2]):
             for z in range(warped_atlases.shape[3]):
-                for l_idx in range(len(labels_array)):
-                    for a in range(warped_atlases.shape[0]):
+                if sum_warped_atlases[x, y, z] > 0:  # if there is at least one atlas at this voxel that has a non-zero label
+                    for l_idx in range(len(labels_array)):
+                        for a in range(warped_atlases.shape[0]):
 
-                        if warped_atlases[a, x, y, z] == labels_array[l_idx]:
-                            multi_atlas_proba_seg[x, y, z, l_idx] += weights[a, x, y, z]
-                # where ever the sum of probabilities is 0, set the first class (background) to 1
-                if np.sum(multi_atlas_proba_seg[x, y, z, :]) == 0:
+                            if warped_atlases[a, x, y, z] == labels_array[l_idx]:
+                                multi_atlas_proba_seg[x, y, z, l_idx] += weights[a, x, y, z]
+                    # where ever the sum of probabilities is 0, set the first class (background) to 1
+                    if np.sum(multi_atlas_proba_seg[x, y, z, :]) == 0:
+                        multi_atlas_proba_seg[x, y, z, 0] = 1
+                else:
                     multi_atlas_proba_seg[x, y, z, 0] = 1
 
     return multi_atlas_proba_seg

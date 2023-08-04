@@ -205,6 +205,9 @@ def multi_atlas_segmentation(img_path,
 
     print(f"Warped atlas segmentations loading completed after {time.time() - t_0_load_warped_atlases:.3f} seconds")
 
+    # calculate the multi-atlas probabilities for each structure
+    print(f"Calculate the multi-atlas probabilities for each structure...")
+    time_0 = time.time()
     multi_atlas_proba_seg = np.zeros((*warped_atlases.shape[1:], num_class), dtype=np.float32)
     multi_atlas_proba_seg = get_multi_atlas_proba_seg(warped_atlases,
                                                       weights,
@@ -215,6 +218,7 @@ def multi_atlas_segmentation(img_path,
     # multi_atlas_proba_seg_nii = nib.Nifti1Image(multi_atlas_proba_seg, affine=img_affine)
     # nib.save(multi_atlas_proba_seg_nii, multi_atlas_proba_seg_path)
 
+    print(f"Multi-atlas structure probabilities merging completed after {time.time() - time_0:.3f} seconds")
     ####################################################################################################################
     # calculate the multi-atlas tissue prior by distributing the probabilities of each structure to its assigned tissues
     ####################################################################################################################
