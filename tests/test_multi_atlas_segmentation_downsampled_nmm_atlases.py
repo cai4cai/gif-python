@@ -4,10 +4,12 @@ import time
 from src.multi_atlas.multi_atlas_segmentation import multi_atlas_segmentation
 from glob import glob
 
-img_path = "../data/input/BraTS2021_00000_downsampled/BraTS2021_00000_t1.nii.gz"
-mask_path = "../data/input/BraTS2021_00000_downsampled/BraTS2021_00000_inv-tumor-mask.nii.gz"
-atlas_dir_list = [d for d in glob("../data/atlases/NMM_atlases/*") if os.path.isdir(d)]
-results_dir = "../data/results/results_NMM_atlases_downsampledInput"
+from src.utils.definitions import ROOT_DIR
+
+img_path = ROOT_DIR+"/data/input/BraTS2021_00000_downsampled/BraTS2021_00000_t1.nii.gz"
+mask_path = ROOT_DIR+"/data/input/BraTS2021_00000_downsampled/BraTS2021_00000_inv-tumor-mask.nii.gz"
+atlas_dir_list = [d for d in glob(ROOT_DIR+"/data/atlases/NMM_atlases/*") if os.path.isdir(d)]
+results_dir = ROOT_DIR+"/data/results/results_NMM_atlases_downsampledInput"
 
 atlas_paths_dicts_list = [{'name': os.path.basename(atlas_dir),
                            'img_path': os.path.join(atlas_dir, 'srr_mni_aligned.nii.gz'),

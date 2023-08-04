@@ -5,8 +5,10 @@ from src.multi_atlas.multi_atlas_segmentation import multi_atlas_segmentation
 from glob import glob
 import argparse
 
+from src.utils.definitions import ROOT_DIR
+
 # list of all atlases, including leave-out atlases
-atlas_dir_list = [d for d in glob("../data/atlases/NMM_atlases/*") if os.path.isdir(d)]
+atlas_dir_list = [d for d in glob(ROOT_DIR+"/data/atlases/NMM_atlases/*") if os.path.isdir(d)]
 
 # check if argument --leaveout is provided, which can be used to leave out one or more atlases when predicting
 parser = argparse.ArgumentParser()
@@ -17,7 +19,7 @@ if args.leaveout:
     # check if all atlases to leave out are actually present
     for lo in args.leaveout:
         if not any([lo in d for d in atlas_dir_list]):
-            raise ValueError("Atlas to leave out not found: ", lo)
+            raise ValueError(f"Atlas to leave out {lo} not found in atlas directory {os.path.dirname(atlas_dir_list[0])}")
 
     atlas_leaveout_list = [d for d in atlas_dir_list if any([lo in d for lo in args.leaveout])]  # leave out atlases
     atlas_remain_list = [d for d in atlas_dir_list if not any([lo in d for lo in args.leaveout])]  # remaining atlases

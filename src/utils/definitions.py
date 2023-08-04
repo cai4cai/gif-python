@@ -1,5 +1,8 @@
 import os
 
+# PATHS
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 # LINEAR REGISTRATION HYPER-PARAMETERS
 reg_aladin_LP = 2  # Number of levels to use to run the registration once the pyramids have been created.
 
