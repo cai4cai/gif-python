@@ -40,13 +40,13 @@ USE_OLD_RESULTS = False
 
 # MULTIPROCESSING FOR LOOP OVER ATLASES
 MULTIPROCESSING = True
-NUM_POOLS = 2  # More pools will require more RAM, be careful not to exceed the available RAM
+NUM_POOLS = 32  # More pools will require more RAM, be careful not to exceed the available RAM
 
 # IN EACH OF THE ABOVE PROCESSES, HOW MANY SUBPROCESSES should reg_aladin and reg_f3d run in parallel?
-OMP = 8  # OMP*NUM_POOLS should not exceed the number of cores available
+OMP = 2  # OMP*NUM_POOLS should not exceed the number of cores available
 
 # NIFTYREG AND NIFTYSEG PATHS
-NIFTYREG_PATH = "/usr/local/bin"  # should contain reg_aladin, reg_f3d, reg_resample binaries
-NIFTYSEG_PATH = "/usr/local/bin"  # should contain seg_EM binary
+NIFTYREG_PATH = os.path.join("/home/aku20/tools/niftyreg-master/install/bin")  # should contain reg_aladin, reg_f3d, reg_resample binaries
+NIFTYSEG_PATH = os.path.join("/home/aku20/tools/NiftySeg-master/install/bin")  # should contain seg_EM binary
 
 
