@@ -114,6 +114,12 @@ def multi_atlas_segmentation(img_path,
     num_unique_labels_all_atlases = len(unique_labels)
     print(f"Number of unique labels in all atlases: {num_unique_labels_all_atlases}")
 
+    # create mapping from label to index
+    label_to_index = {label: index for index, label in enumerate(unique_labels)}
+
+    # create mapping from index to label
+    index_to_label = {index: label for index, label in enumerate(unique_labels)}
+
     # number of labels in the structure info csv file
     num_label_structure = len(structure_df.index)
     print(f"Number of unique labels in the structure info csv file: {num_label_structure}")
@@ -219,8 +225,12 @@ def multi_atlas_segmentation(img_path,
     # multi_atlas_proba_seg_nii = nib.Nifti1Image(multi_atlas_proba_seg, affine=img_affine)
     # nib.save(multi_atlas_proba_seg_nii, multi_atlas_proba_seg_path)
 
-    # save the argmax of the merged probabilities
+    # get the maximum index of the probabilities
     multi_atlas_seg = np.argmax(multi_atlas_proba_seg, axis=-1).astype(np.uint8)
+
+    # map the maximum index to the corresponding original labels using index_to_label dict
+    multi_atlas_seg = np.vectorize(index_to_label.get)(multi_atlas_seg)
+
     multi_atlas_seg_nii = nib.Nifti1Image(multi_atlas_seg, affine=img_affine)
     nib.save(multi_atlas_seg_nii, multi_atals_proba_seg_argmax_path)
 
