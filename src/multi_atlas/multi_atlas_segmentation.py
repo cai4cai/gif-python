@@ -72,6 +72,7 @@ def multi_atlas_segmentation(img_path,
     ####################################################################################################################
     # define the paths to the files that will be created
     multi_atlas_proba_seg_path = os.path.join(save_dir, f"multi_atlas_proba_seg.nii.gz")
+    multi_atals_proba_seg_argmax_path = os.path.join(save_dir, f"multi_atlas_proba_seg_argmax.nii.gz")
     multi_atlas_tissue_prior_path = os.path.join(save_dir, f"multi_atlas_tissue_prior.nii.gz")
     multi_atlas_tissue_seg_path = os.path.join(save_dir, f"multi_atlas_tissue_seg.nii.gz")
     final_parcel_path = os.path.join(save_dir, f"final_parcellation.nii.gz")
@@ -218,6 +219,11 @@ def multi_atlas_segmentation(img_path,
     # multi_atlas_proba_seg_nii = nib.Nifti1Image(multi_atlas_proba_seg, affine=img_affine)
     # nib.save(multi_atlas_proba_seg_nii, multi_atlas_proba_seg_path)
 
+    # save the argmax of the merged probabilities
+    multi_atlas_seg = np.argmax(multi_atlas_proba_seg, axis=-1).astype(np.uint8)
+    multi_atlas_seg_nii = nib.Nifti1Image(multi_atlas_seg, affine=img_affine)
+    nib.save(multi_atlas_seg_nii, multi_atals_proba_seg_argmax_path)
+
     print(f"Multi-atlas structure probabilities merging completed after {time.time() - time_0:.3f} seconds")
     ####################################################################################################################
     # calculate the multi-atlas tissue prior by distributing the probabilities of each structure to its assigned tissues
@@ -261,6 +267,12 @@ def multi_atlas_segmentation(img_path,
     # where the prior background is 1, set the multi_atlas_tissue_seg to 1
     # this is to avoid artifacts at the image boundary, where the seg_EM algorithm reduces the background probability
     multi_atlas_tissue_seg_EM[multi_atlas_tissue_prior[..., 0] == 1] = 1
+
+    # at the image boundary, the seg_EM algorithm reduces the background probability, which leads to artifacts
+    # set the background probability to 1 at the image boundary
+    multi_atlas_tissue_seg_EM[[0, -1], :, :] = 1
+    multi_atlas_tissue_seg_EM[:, [0, -1], :] = 1
+    multi_atlas_tissue_seg_EM[:, :, [0, -1]] = 1
 
     # argmax to get the final tissue segmentation
     multi_atlas_tissue_seg = np.argmax(multi_atlas_tissue_seg_EM, axis=-1).astype(np.uint8)
