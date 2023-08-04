@@ -41,9 +41,12 @@ def multi_atlas_segmentation(img_path,
     :param save_dir: Path to the directory where the results will be saved
     """
 
+    print("Multi-atlas segmentation using the GIF-like fusion method...")
     ####################################################################################################################
     # Check inputs
     ####################################################################################################################
+    print("Checking inputs...")
+    time_0 = time.time()
     assert os.path.exists(img_path), f"Input image does not exist: {img_path}"
     if mask_path is not None:
         assert os.path.exists(mask_path), f"Input mask does not exist: {mask_path}"
@@ -63,6 +66,7 @@ def multi_atlas_segmentation(img_path,
     assert os.path.exists(structure_info_csv_path), f"Structure info csv file does not exist: {structure_info_csv_path}"
     assert os.path.exists(tissue_info_csv_path), f"Tissue info csv file does not exist: {tissue_info_csv_path}"
 
+    print(f"Inputs checked in {time.time() - time_0} seconds.")
     ####################################################################################################################
     # Prepare output paths
     ####################################################################################################################
@@ -88,7 +92,8 @@ def multi_atlas_segmentation(img_path,
     ####################################################################################################################
     # check that all labels present in the atlases are present in the structure info csv file
     ####################################################################################################################
-
+    print("Checking that all labels present in the atlases are present in the structure info csv file...")
+    time_0 = time.time()
     unique_labels = set()
     # number of labels in the atlas segmentations
     for atlas_dict in atlas_paths_dicts_list:
@@ -129,6 +134,7 @@ def multi_atlas_segmentation(img_path,
     num_unique_tissues_in_tissue_info_csv = len(tissues_in_tissue_info_csv)
     print(f"Number of unique tissues in the tissue info csv file: {num_unique_tissues_in_tissue_info_csv}")
 
+    print(f"Finished checks. Time elapsed: {time.time() - time_0} seconds.")
     ####################################################################################################################
     # Register the atlas segmentations to the input image and compute the similarity weights
     ####################################################################################################################
@@ -246,8 +252,14 @@ def multi_atlas_segmentation(img_path,
 
     # load the result
     print(f"Loading seg_EM result...")
-    multi_atlas_tissue_seg = np.argmax(
-        nib.load(seg_EM_params['output_filename']).get_fdata(dtype=np.float16), axis=-1).astype(np.uint8)
+    multi_atlas_tissue_seg_EM = nib.load(seg_EM_params['output_filename']).get_fdata(dtype=np.float16)
+
+    # where the prior background is 1, set the multi_atlas_tissue_seg to 1
+    # this is to avoid artifacts at the image boundary, where the seg_EM algorithm reduces the background probability
+    multi_atlas_tissue_seg_EM[multi_atlas_tissue_prior[..., 0] == 1] = 1
+
+    # argmax to get the final tissue segmentation
+    multi_atlas_tissue_seg = np.argmax(multi_atlas_tissue_seg_EM, axis=-1).astype(np.uint8)
 
     print(f"Running seg_EM algorithm completed after {time.time() - t_0_segEM:.3f} seconds")
 
