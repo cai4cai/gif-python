@@ -6,7 +6,7 @@ from glob import glob
 import argparse
 
 # list of all atlases, including leave-out atlases
-atlas_dir_list = [d for d in glob("../data/atlases/NMM_atlases/*") if os.path.isdir(d)]
+atlas_dir_list = [d for d in glob("./data/atlases/NMM_atlases/*") if os.path.isdir(d)]
 
 # check if argument --leaveout is provided, which can be used to leave out one or more atlases when predicting
 parser = argparse.ArgumentParser()
