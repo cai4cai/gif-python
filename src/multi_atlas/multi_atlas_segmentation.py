@@ -73,7 +73,7 @@ def multi_atlas_segmentation(img_path,
     final_parcel_path = os.path.join(save_dir, f"final_parcellation.nii.gz")
 
     if not os.path.exists(save_dir):
-        os.mkdir(save_dir)
+        os.makedirs(save_dir, exist_ok=True)
 
     ####################################################################################################################
     # read structure and tissue info
