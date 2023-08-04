@@ -79,7 +79,7 @@ def get_lncc_distance(image, mask, atlas_warped_image, spacing):
     if image.ndim == 4 and image.shape[3] == 1:
         image = image.squeeze(axis=3)
 
-    if not mask:
+    if mask is None:
         mask = np.ones_like(image)
 
     # Gaussian kernel standard deviation in mm (if > 0) or in voxels (if < 0)
