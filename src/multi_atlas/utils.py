@@ -17,7 +17,7 @@ def nibabel_load_and_get_fdata(filepath, dtype=np.float32):
     :param dtype: dtype of the returned numpy array
     :return: numpy array of the specified dtype
     """
-    if dtype == np.uint8:
+    if dtype == np.uint16:
         return nib.load(filepath).get_fdata(dtype=np.float16).astype(dtype)
     else:
         return nib.load(filepath).get_fdata(dtype=dtype).astype(dtype)

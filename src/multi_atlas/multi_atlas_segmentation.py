@@ -98,7 +98,7 @@ def multi_atlas_segmentation(img_path,
     unique_labels = set()
     # number of labels in the atlas segmentations
     for atlas_dict in atlas_paths_dicts_list:
-        atlas_seg = nib.load(atlas_dict["seg_path"]).get_fdata(dtype=np.float16).astype(np.uint8)
+        atlas_seg = nib.load(atlas_dict["seg_path"]).get_fdata(dtype=np.float16).astype(np.uint16)
         unique_labels_curr_atlas = np.unique(atlas_seg)
         unique_labels.update(unique_labels_curr_atlas)
 
@@ -152,7 +152,7 @@ def multi_atlas_segmentation(img_path,
     # load the mask
     if mask_path:
         mask_nii = nib.load(mask_path)
-        img_mask = mask_nii.get_fdata(dtype=np.float16).astype(np.uint8)
+        img_mask = mask_nii.get_fdata(dtype=np.float16).astype(np.uint16)
     else:
         img_mask = None
 
@@ -207,7 +207,7 @@ def multi_atlas_segmentation(img_path,
     print(f"Load the warped atlas segmentations from disk ...")
     t_0_load_warped_atlases = time.time()
     with Pool(NUM_POOLS) as p:
-        warped_atlases = np.array(p.starmap(nibabel_load_and_get_fdata, [(warped_atlas_path_list[a], np.uint8) for a in
+        warped_atlases = np.array(p.starmap(nibabel_load_and_get_fdata, [(warped_atlas_path_list[a], np.uint16) for a in
                                             range(num_atlases)]))  # num_atlases x H x W x D
 
     print(f"Warped atlas segmentations loading completed after {time.time() - t_0_load_warped_atlases:.3f} seconds")
@@ -226,7 +226,7 @@ def multi_atlas_segmentation(img_path,
     # nib.save(multi_atlas_proba_seg_nii, multi_atlas_proba_seg_path)
 
     # get the maximum index of the probabilities
-    multi_atlas_seg = np.argmax(multi_atlas_proba_seg, axis=-1).astype(np.uint8)
+    multi_atlas_seg = np.argmax(multi_atlas_proba_seg, axis=-1).astype(np.uint16)
 
     # map the maximum index to the corresponding original labels using index_to_label dict
     multi_atlas_seg = np.vectorize(index_to_label.get)(multi_atlas_seg)
@@ -285,7 +285,7 @@ def multi_atlas_segmentation(img_path,
     multi_atlas_tissue_seg_EM[:, :, [0, -1]] = 1
 
     # argmax to get the final tissue segmentation
-    multi_atlas_tissue_seg = np.argmax(multi_atlas_tissue_seg_EM, axis=-1).astype(np.uint8)
+    multi_atlas_tissue_seg = np.argmax(multi_atlas_tissue_seg_EM, axis=-1).astype(np.uint16)
 
     print(f"Running seg_EM algorithm completed after {time.time() - t_0_segEM:.3f} seconds")
 

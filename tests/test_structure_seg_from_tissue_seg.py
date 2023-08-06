@@ -14,7 +14,7 @@ else:
     size = np.array([200, 100, 10])
     nb_structures = 160
     nb_tissues = 7
-    tiss_seg = np.random.randint(0, nb_tissues+1, size=size, dtype=np.uint8)
+    tiss_seg = np.random.randint(0, nb_tissues+1, size=size, dtype=np.uint16)
     lab_probs = np.random.rand(*size, nb_structures)
     # make sure lab_probs sums to 1 along last dimension
     lab_probs = lab_probs / np.sum(lab_probs, axis=-1, keepdims=True)
