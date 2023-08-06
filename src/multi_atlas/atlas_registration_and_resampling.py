@@ -109,7 +109,7 @@ def warp_atlas_and_calc_similarity_weights(img_path,
         # compute LNCC distance
         lncc_distance = get_lncc_distance(
             image=nib.load(img_path).get_fdata(dtype=np.float32),
-            mask=None if not mask_path else nib.load(mask_path).get_fdata(dtype=np.float16).astype(np.uint8),
+            mask=None if not mask_path else nib.load(mask_path).get_fdata(dtype=np.float16).astype(np.uint16),
             atlas_warped_image=warped_atlas_linear_interp,
             spacing=warped_atlas_nii.header.get_zooms()[0:3],
         )
