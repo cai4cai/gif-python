@@ -36,7 +36,7 @@ for i in range(len(atlas_leaveout_list)):
     img_path = os.path.join(atlas_leaveout_list[i], 'srr.nii.gz')
     mask_path = os.path.join(atlas_leaveout_list[i], 'mask.nii.gz')  # these atlases don't have masks
 
-    results_dir = ROOT_DIR+"/data/results/results_NMM_atlases_leaveoneout/" + os.path.basename(atlas_leaveout_list[i])
+    results_dir = ROOT_DIR+"/data/results/results_GENFI_atlases_leaveoneout/" + os.path.basename(atlas_leaveout_list[i])
 
     # assemble atlas paths dicts list, excluding the atlas we're leaving out
     atlas_paths_dicts_list = [{'name': os.path.basename(atlas_dir),
