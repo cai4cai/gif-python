@@ -34,16 +34,13 @@
 #cpp_path=${cpp_paths[$SLURM_ARRAY_TASK_ID]}
 
 
-# script path input
-script_path=${1}
-
 module load miniconda
 conda activate local
 
-echo Submitting ${script_path}
+echo Submitting "$@"
 
 timestamp=$(date -d "today" +"%Y-%m-%d-%H_%M_%S")
-python -m cProfile -o logs/profile_${timestamp}.dat ${script_path}
+python -m cProfile -o logs/profile_${timestamp}.dat "$@"
 #python run_multi_atalas_segmentation_test.py
 
 cp logs/profile_${timestamp}.dat logs/profile_latest.dat
