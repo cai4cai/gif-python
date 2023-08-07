@@ -3,10 +3,11 @@ import time
 
 from src.multi_atlas.multi_atlas_segmentation import multi_atlas_segmentation
 from glob import glob
+from natsort import natsorted
 
 from src.utils.definitions import ROOT_DIR
 
-atlas_dir_list = [d for d in glob(ROOT_DIR+"/data/atlases/NMM_atlases/*") if os.path.isdir(d)]
+atlas_dir_list = [d for d in natsorted(glob(ROOT_DIR+"/data/atlases/NMM_atlases/*")) if os.path.isdir(d)]
 
 # loop over all atlases, predict with all other atlases
 for i in range(len(atlas_dir_list)):
