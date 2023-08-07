@@ -24,7 +24,7 @@ echo Submitting ${script_path} --taskid ${SLURM_ARRAY_TASK_ID}
 
 timestamp=$(date -d "today" +"%Y-%m-%d-%H_%M_%S")
 #python -m cProfile -o logs/profile_${timestamp}.dat ${script_path}
-python ${script_path} --taskid ${atlas_name}
+python ${script_path} --taskid ${SLURM_ARRAY_TASK_ID}
 
 #if [[ $(((SLURM_ARRAY_TASK_ID+1) % nb_of_submitted_jobs_limit)) == 0 ]] ; then 
 #    sbatch --array=$((SLURM_ARRAY_TASK_ID+1))-$((SLURM_ARRAY_TASK_ID+nb_of_submitted_jobs_limit)) "$0" "$@"
