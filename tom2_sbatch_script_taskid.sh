@@ -13,25 +13,14 @@
 #echo ------ $1
 #./runGIF_array_program.sh "$@"
 
-# string inputs
-atlas_names_str=${2}
-
-nb_of_submitted_jobs_limit=${3}
-
-# parse string inputs into arrays
-IFS=' ' read -ra atlas_names <<< "$atlas_names_str"
-
-
-# select the correct paths based on SLURM_ARRAY_TASK_ID
-atlas_name=${atlas_names[$SLURM_ARRAY_TASK_ID]}
-
 # script path input
 script_path=${1}
+nb_of_submitted_jobs_limit=${2}
 
 module load miniconda
 conda activate local
 
-echo Submitting ${script_path} --leaveout ${atlas_name}
+echo Submitting ${script_path} --taskid ${SLURM_ARRAY_TASK_ID}
 
 timestamp=$(date -d "today" +"%Y-%m-%d-%H_%M_%S")
 #python -m cProfile -o logs/profile_${timestamp}.dat ${script_path}

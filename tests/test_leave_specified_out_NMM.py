@@ -10,24 +10,24 @@ from src.utils.definitions import ROOT_DIR
 # list of all atlases, including leave-out atlases
 atlas_dir_list = [d for d in glob(ROOT_DIR+"/data/atlases/NMM_atlases/*") if os.path.isdir(d)]
 
-# check if argument --leaveout is provided, which can be used to leave out one or more atlases when predicting
+# check if argument --taskid is provided, which can be used to leave out one or more atlases when predicting
 parser = argparse.ArgumentParser()
-parser.add_argument('--leaveout', action='extend', nargs='+', type=str, help='leave out this atlas when predicting')
+parser.add_argument('--taskid', action='extend', nargs='+', type=str, help='leave out this atlas when predicting')
 args = parser.parse_args()
 
-if args.leaveout:
-    # check if all atlases to leave out are actually present
-    for lo in args.leaveout:
-        if not any([lo in d for d in atlas_dir_list]):
-            raise ValueError(f"Atlas to leave out {lo} not found in atlas directory {os.path.dirname(atlas_dir_list[0])}")
+if args.taskid:
+    # check if atlas indices to leave out are actually present
+    for lo_idx in args.taskid:
+        if int(lo_idx) >= len(atlas_dir_list):
+            raise ValueError(f"Atlas index to leave out {lo_idx} is larger than the number of atlases {len(atlas_dir_list)}")
 
-    atlas_leaveout_list = [d for d in atlas_dir_list if any([lo in d for lo in args.leaveout])]  # leave out atlases
-    atlas_remain_list = [d for d in atlas_dir_list if not any([lo in d for lo in args.leaveout])]  # remaining atlases
+    atlas_leaveout_list = [atlas_dir_list[int(lo_idx)] for lo_idx in args.taskid]  # atlases to leave out
+    atlas_remain_list = [atlas_dir for atlas_dir in atlas_dir_list if atlas_dir not in atlas_leaveout_list]  # atlases to use for prediction
 
     print("Leaving out atlases: ", [os.path.basename(d) for d in atlas_leaveout_list])
     print("Atlases used for prediction: ", [os.path.basename(d) for d in atlas_remain_list])
 else:
-    raise ValueError("Please provide atlases to leave out with --leaveout argument")
+    raise ValueError("Please provide atlases to leave out with --taskid argument")
 
 
 # loop over left-out atlases, predict with all other atlases

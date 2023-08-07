@@ -86,7 +86,10 @@ def register_atlas_to_img(img_path,
         f'-voff '
 
     )
-    os.system(reg_resample_cmd)
+
+    if os.system(reg_resample_cmd):
+        print(f'Error in reg_resample! The command was:\n{reg_resample_cmd}')
+        exit(1)
 
     return affine_path, cpp_path
 

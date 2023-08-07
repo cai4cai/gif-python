@@ -8,7 +8,7 @@ import argparse
 from src.utils.definitions import ROOT_DIR
 
 # list of all atlases, including leave-out atlases
-atlas_dir_list = [d for d in glob(ROOT_DIR+"/data/atlases/Mindboggle_atlases/*") if os.path.isdir(d)]
+atlas_dir_list = [d for d in glob(ROOT_DIR+"/data/atlases/GENFI_atlases/*") if os.path.isdir(d)]
 
 # check if argument --taskid is provided, which can be used to leave out one or more atlases when predicting
 parser = argparse.ArgumentParser()
@@ -32,15 +32,16 @@ else:
 
 # loop over left-out atlases, predict with all other atlases
 for i in range(len(atlas_leaveout_list)):
-    img_path = os.path.join(atlas_leaveout_list[i], 'orig_mni_aligned.nii.gz')
-    mask_path = None  # these atlases don't have masks
+    img_path = os.path.join(atlas_leaveout_list[i], 'srr.nii.gz')
+    mask_path = os.path.join(atlas_leaveout_list[i], 'mask.nii.gz')  # these atlases don't have masks
 
-    results_dir = ROOT_DIR+"/data/results/results_Mindboggle_atlases_leaveoneout/" + os.path.basename(atlas_leaveout_list[i])
+    results_dir = ROOT_DIR+"/data/results/results_NMM_atlases_leaveoneout/" + os.path.basename(atlas_leaveout_list[i])
 
     # assemble atlas paths dicts list, excluding the atlas we're leaving out
     atlas_paths_dicts_list = [{'name': os.path.basename(atlas_dir),
-                               'img_path': os.path.join(atlas_dir, 'orig_mni_aligned.nii.gz'),
-                               'seg_path': os.path.join(atlas_dir, 'labels_cleaned_mni_aligned.nii.gz')}
+                               'img_path': os.path.join(atlas_dir, 'srr.nii.gz'),
+                               'seg_path': os.path.join(atlas_dir, 'parcellation.nii.gz'),
+                               'mask_path': os.path.join(atlas_dir, 'mask.nii.gz')}
                               for atlas_dir in atlas_remain_list]
 
     time_0 = time.time()
