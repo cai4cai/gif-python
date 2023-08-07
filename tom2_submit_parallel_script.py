@@ -6,7 +6,7 @@ sys.path.append(os.getcwd())
 
 sbatch_script_path = "./tom2_sbatch_script_taskid.sh"
 python_script_path = sys.argv[1]  # path to the python script to be executed (takes 1 argument: the task id --taskid )
-nb_cases = sys.argv[2]  # total number of taskid to be submitted
+nb_cases = int(sys.argv[2])  # total number of taskid to be submitted
 
 nb_of_active_jobs = 8
 nb_of_submitted_jobs_limit = 99999
