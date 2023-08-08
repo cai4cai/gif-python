@@ -6,8 +6,8 @@ from glob import glob
 
 from src.utils.definitions import ROOT_DIR
 
-img_path = ROOT_DIR+"/data/input/BraTS2021_00000_downsampled/BraTS2021_00000_t1.nii.gz"
-mask_path = ROOT_DIR+"/data/input/BraTS2021_00000_downsampled/BraTS2021_00000_inv-tumor-mask.nii.gz"
+img_path = ROOT_DIR+"/data/input/BraTS2021/BraTS2021_00000_downsampled/BraTS2021_00000_t1.nii.gz"
+mask_path = ROOT_DIR+"/data/input/BraTS2021/BraTS2021_00000_downsampled/BraTS2021_00000_inv-tumor-mask.nii.gz"
 atlas_dir_list = [d for d in glob(ROOT_DIR+"/data/atlases/GENFI_atlases_downsampled/*") if os.path.isdir(d)]
 results_dir = ROOT_DIR+"/data/results/results_GENFI_atlases_downsampledInput"
 
