@@ -104,7 +104,7 @@ def propagate_atlas_seg(
     if RESAMPLE_METHOD == 0:
 
         # Warp the atlas seg using reg_resample and save the warped file
-        cmd = (
+        reg_resample_cmd = (
             f'{NIFTYREG_PATH}/reg_resample '
             f'-ref "{img_path}" '
             f'-flo "{atlas_seg_path}" '
@@ -114,6 +114,9 @@ def propagate_atlas_seg(
             f'-omp {OMP} '
             f'-voff '
         )
-        os.system(cmd)
+
+        if os.system(reg_resample_cmd):
+            print(f'Error in reg_resample! The command was:\n{reg_resample_cmd}')
+            exit(1)
 
         return warped_atlas_seg_path
