@@ -75,22 +75,6 @@ def register_atlas_to_img(img_path,
     print(reg_cmd)
     os.system(reg_cmd)
 
-    # apply the registration to the atlas image again using reg_resample with linear interpolation
-    reg_resample_cmd = (
-        f'{NIFTYREG_PATH}/reg_resample '
-        f'-ref "{img_path}" '
-        f'-flo "{atlas_img_path}" '
-        f'-trans "{cpp_path}" '
-        f'-inter 1 '
-        f'-res "{warped_atlas_img_path.replace(".nii.gz", "_linear_interp.nii.gz")}" '
-        f'-voff '
-
-    )
-
-    if os.system(reg_resample_cmd):
-        print(f'Error in reg_resample! The command was:\n{reg_resample_cmd}')
-        exit(1)
-
     return affine_path, cpp_path
 
 
@@ -120,3 +104,33 @@ def propagate_atlas_seg(
             exit(1)
 
         return warped_atlas_seg_path
+
+
+def get_linearly_interpolated_warped_atlas_img(img_path, atlas_img_path, cpp_path, lin_interp_warped_atlas_img_path):
+    """
+    Apply the registration to the atlas image again using reg_resample with linear interpolation
+    The linear interpolation preserves the edges of the masked images better than cubic spline interpolation
+    This is done to avoid edge artifacts in the LNCC distance calculation
+
+    :param img_path: path to the target image
+    :param atlas_img_path: path to the atlas image
+    :param cpp_path: path to the cpp file
+    :param lin_interp_warped_atlas_img_path: path to the linearly interpolated warped atlas image
+
+    """
+    reg_resample_cmd = (
+        f'{NIFTYREG_PATH}/reg_resample '
+        f'-ref "{img_path}" '
+        f'-flo "{atlas_img_path}" '
+        f'-trans "{cpp_path}" '
+        f'-inter 1 '
+        f'-res "{lin_interp_warped_atlas_img_path}" '
+        f'-voff '
+
+    )
+
+    if os.system(reg_resample_cmd):
+        print(f'Error in reg_resample! The command was:\n{reg_resample_cmd}')
+        exit(1)
+
+    return lin_interp_warped_atlas_img_path

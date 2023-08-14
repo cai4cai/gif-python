@@ -3,10 +3,10 @@ import time
 import nibabel as nib
 import numpy as np
 
-from src.multi_atlas.atlas_propagation import register_atlas_to_img, propagate_atlas_seg
+from src.multi_atlas.atlas_propagation import register_atlas_to_img, propagate_atlas_seg, get_linearly_interpolated_warped_atlas_img
 from src.multi_atlas.utils import get_lncc_distance
 
-from src.utils.definitions import USE_OLD_RESULTS, WEIGHTS_TEMPERATURE
+from src.utils.definitions import USE_OLD_RESULTS, WEIGHTS_TEMPERATURE, NIFTYREG_PATH
 
 
 def warp_atlas_and_calc_similarity_weights(img_path,
@@ -38,6 +38,7 @@ def warp_atlas_and_calc_similarity_weights(img_path,
     affine_warped_atlas_img_path = os.path.join(save_dir_atlas, 'affine_warped_atlas_img.nii.gz')
     cpp_path = os.path.join(save_dir_atlas, 'cpp.nii.gz')
     warped_atlas_img_path = os.path.join(save_dir_atlas, 'warped_atlas_img.nii.gz')
+    lin_interp_warped_atlas_img_path = warped_atlas_img_path.replace(".nii.gz", "_linear_interp.nii.gz")
     warped_atlas_seg_path = os.path.join(save_dir_atlas, 'warped_atlas_seg.nii.gz')
     disp_field_path = os.path.join(save_dir_atlas, 'disp.nii.gz')
     lncc_distance_path = os.path.join(save_dir_atlas, 'lncc_distance.nii.gz')
@@ -103,7 +104,11 @@ def warp_atlas_and_calc_similarity_weights(img_path,
 
         # get the linearly interpolated warped atlas
         # the linear interpolation preserves the edges of the masked images better than cubic spline interpolation
-        warped_atlas_linear_interp_nii = nib.load(warped_atlas_img_path.replace(".nii.gz", "_linear_interp.nii.gz"))
+        # apply the registration to the atlas image again using reg_resample with linear interpolation
+
+        lin_interp_warped_atlas_img_path = get_linearly_interpolated_warped_atlas_img(img_path, atlas_img_path, cpp_path, lin_interp_warped_atlas_img_path)
+
+        warped_atlas_linear_interp_nii = nib.load(lin_interp_warped_atlas_img_path)
         warped_atlas_linear_interp = warped_atlas_linear_interp_nii.get_fdata(dtype=np.float32)
 
         # compute LNCC distance
