@@ -27,8 +27,8 @@ print(f"Running taskid {taskid} out of {len(img_paths)}, img_path = {img_paths[t
 img_path = img_paths[taskid]
 mask_path = None
 
-atlas_dir_list = [d for d in glob(ROOT_DIR+"/data/atlases/Mindboggle_atlases/*") if os.path.isdir(d)]
-results_dir = os.path.join(ROOT_DIR, "data/results/results_Mindboggle_on_OpenNeuro",  os.path.basename(os.path.dirname(img_path)))
+atlas_dir_list = [d for d in glob(ROOT_DIR+"/data/atlases/Mindboggle90_atlases/*") if os.path.isdir(d)]
+results_dir = os.path.join(ROOT_DIR, "data/results/results_Mindboggle90_on_OpenNeuro",  os.path.basename(os.path.dirname(img_path)))
 
 atlas_paths_dicts_list = [{'name': os.path.basename(atlas_dir),
                            'img_path': os.path.join(atlas_dir, 'orig_mni_aligned.nii.gz'),
