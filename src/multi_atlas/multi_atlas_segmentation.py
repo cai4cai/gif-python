@@ -194,6 +194,10 @@ def multi_atlas_segmentation(img_path,
             weight = nibabel_load_and_get_fdata(path)
             weights_list.append(weight)
 
+    # remove the weight files
+    for path in weights_path_list:
+        os.remove(path)
+
     # calculate the weights from the heat kernels
     weights = np.stack(weights_list, axis=0)  # n_atlas, H, W, D
     # set NaN in the weights to 0

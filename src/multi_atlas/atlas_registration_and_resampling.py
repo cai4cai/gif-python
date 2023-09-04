@@ -49,7 +49,7 @@ def warp_atlas_and_calc_similarity_weights(img_path,
         #warped_atlas_img_path,
         lncc_distance_path,
         disp_field_path,
-        #weights_path,
+        weights_path,
         #cpp_path
 
     ]
