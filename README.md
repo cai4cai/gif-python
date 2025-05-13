@@ -1,5 +1,7 @@
 # Python implementation of the Geodesic Information Flows (GIF) algorithm
-Reference: [Geodesic Information Flows: Spatially-Variant Graphs and Their Application to Segmentation and Fusion ](https://pubmed.ncbi.nlm.nih.gov/25879909/)
+References
+- Paper: [Geodesic Information Flows: Spatially-Variant Graphs and Their Application to Segmentation and Fusion ](https://pubmed.ncbi.nlm.nih.gov/25879909/)
+- Reference c++ implementation: https://github.com/KCL-BMEIS/gif
 
 ## Steps performed by the algorithm
 1. Register all atlas images to the image to be segmented (target image) and resample the atlas images into
