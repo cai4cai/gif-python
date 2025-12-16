@@ -7,6 +7,7 @@ This guide provides detailed instructions for installing all the required softwa
 - [NiftyReg Installation](#niftyreg-installation)
 - [NiftySeg Installation](#niftyseg-installation)
 - [Python Libraries](#python-libraries)
+- [Data Folder Setup](#data-folder-setup)
 - [Verification](#verification)
 
 ## Python Installation
@@ -158,6 +159,78 @@ venv\Scripts\activate
 # Install the required libraries
 pip install numpy nibabel scipy pandas numba
 ```
+
+## Data Folder Setup
+
+The `data/` folder is required for running multi-atlas segmentation and is **not included** in this repository. You need to set it up with the appropriate atlas data.
+
+### Expected Data Folder Structure
+
+```
+data/
+├── atlases/
+│   ├── Mindboggle101/                  # Mindboggle atlases
+│   │   ├── structures_info.csv         # Label definitions
+│   │   ├── tissues_info.csv            # Tissue type definitions
+│   │   ├── OASIS-TRT-20-1/
+│   │   │   ├── t1weighted.nii.gz
+│   │   │   ├── labels.DKT31.manual+aseg.nii.gz
+│   │   │   └── labels.DKT31.manual+aseg_cleaned.nii.gz
+│   │   ├── OASIS-TRT-20-2/
+│   │   │   ├── t1weighted.nii.gz
+│   │   │   ├── labels.DKT31.manual+aseg.nii.gz
+│   │   │   └── labels.DKT31.manual+aseg_cleaned.nii.gz
+│   │   └── ...                         # (101 subjects total)
+│
+└── input/                              # Your subjects to segment (optional)
+    └── subject-01/
+        └── t1weighted_brain.nii.gz
+```
+
+### Required Files per Atlas Subject
+
+Each atlas directory must contain:
+- **`t1weighted.nii.gz`**: T1-weighted MRI image
+- **`labels.DKT31.manual+aseg.nii.gz`**: Manual segmentation labels (DKT31 parcellation)
+- **`labels.DKT31.manual+aseg_cleaned.nii.gz`**: Manual segmentation labels (DKT31 parcellation) without the labels [1001, 1032, 1033, 2001, 2032, 2033] after having used clean_small_labels.py
+
+### Required CSV Files
+
+#### `structures_info.csv`
+Defines label IDs, names, and tissue classifications:
+```csv
+label,name,tissues
+0,Unknown,[0]
+2,Left-Cerebral-White-Matter,[3]
+1002,ctx-lh-caudalanteriorcingulate,[2]
+...
+```
+
+#### `tissues_info.csv`
+Defines tissue type IDs and names:
+```csv
+label,name
+0,Non-Brain Outer Tissue
+1,Cerebral Spinal Fluid
+2,Grey Matter
+3,White Matter
+4,Deep Grey Matter
+5,Brain Stem and Pons
+```
+
+### Obtaining Atlas Data
+
+The Mindboggle101 atlas data can be obtained from:
+
+1. **Synapse** (Recommended): [https://www.synapse.org/Synapse:syn3218329/files/](https://www.synapse.org/Synapse:syn3218329/files/)
+2. **Mindboggle Website**: [https://mindboggle.info/data.html](https://mindboggle.info/data.html)
+
+After downloading:
+1. Extract the atlas data
+2. Organize it according to the structure above
+3. Ensure each subject has both the T1-weighted image and labels
+4. Place the `structures_info.csv` and `tissues_info.csv` files in the atlas root directory
+
 
 ## Verification
 
