@@ -4,3 +4,7 @@
 *.png
 *.pdf
 data
+.venv
+outputs
+.hypothesis
+.vscode
