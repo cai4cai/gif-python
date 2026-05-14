@@ -5,7 +5,7 @@ from glob import glob
 
 labels_to_replace = [1001, 1032, 1033, 2001, 2032, 2033]
 
-p_in_all = glob("data/Mindboggle101/*/labels.DKT31.manual+aseg.nii.gz")
+p_in_all = glob("/nfs/home/jwang/datasets/Mindboggle101/subjects/*/labels.DKT31.manual+aseg.nii.gz")
 p_out_all = [p.replace(".nii.gz", "_cleaned.nii.gz") for p in p_in_all]
 
 def get_neighbors(coords):

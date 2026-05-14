@@ -10,13 +10,13 @@ from src.multi_atlas.multi_atlas_segmentation import multi_atlas_segmentation
 # Configuration
 # ----------------------
 # Input: single subject directory
-SUBJECT_DIR = "data/input/subject-01"
+SUBJECT_DIR = "/nfs/home/jwang/datasets/Mindboggle101/subjects/Afterthought-1"
 
 # Atlases: Mindboggle atlas directory
-ATLAS_ROOT = "data/atlases/Mindboggle101"
+ATLAS_ROOT = "/nfs/home/jwang/datasets/Mindboggle101/subjects"
 
 # Output: where to save results
-RESULTS_ROOT = "results"
+RESULTS_ROOT = "outputs"
 
 # ----------------------
 # Run segmentation

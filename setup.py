@@ -8,5 +8,5 @@ setup(
     author_email='askujawa@gmail.com',
     description='Python implementation of GIF',
     packages=find_packages(),    
-    install_requires=['numpy >= 1.11.1'],
+    install_requires=['numpy >= 1.11.1', 'scipy >= 1.10.1'],
 )
