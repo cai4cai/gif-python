@@ -9,6 +9,7 @@ Example:
 from __future__ import annotations
 
 import argparse
+import csv
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -71,7 +72,7 @@ def subject_dice(
     pred_path: Path,
     gt_path: Path,
     exclude_background: bool,
-) -> list[float]:
+) -> list[tuple[int, float]]:
     pred, pred_affine = load_label_image(pred_path)
     gt, gt_affine = load_label_image(gt_path)
 
@@ -98,14 +99,21 @@ def subject_dice(
     for label in labels:
         denom = pred_counts[label] + gt_counts[label]
         if denom == 0:
-            scores.append(1.0)
+            scores.append((label, 1.0))
         else:
-            scores.append(2.0 * matching_counts[label] / denom)
+            scores.append((label, 2.0 * matching_counts[label] / denom))
     return scores
 
 
 def collect_prediction_paths(pred_dir: Path, prediction_name: str) -> list[Path]:
     return sorted(path for path in pred_dir.glob(f"*/{prediction_name}") if path.is_file())
+
+
+def write_score_csv(rows: list[tuple[str, int, float]], output_path: Path) -> None:
+    with output_path.open("w", newline="") as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(["subject", "label", "dice"])
+        writer.writerows(rows)
 
 
 def main(argv: Iterable[str] | None = None) -> None:
@@ -117,7 +125,7 @@ def main(argv: Iterable[str] | None = None) -> None:
             f"No prediction files named {args.prediction_name} found under {args.pred_dir}"
         )
 
-    dice_scores = []
+    score_rows = []
     evaluated_subjects = 0
     for pred_path in pred_paths:
         subject = pred_path.parent.name
@@ -126,23 +134,30 @@ def main(argv: Iterable[str] | None = None) -> None:
             print(f"{subject}: missing ground truth - skipping", flush=True)
             continue
 
-        scores = subject_dice(pred_path, gt_path, args.exclude_background)
-        dice_scores.extend(scores)
+        subject_scores = subject_dice(pred_path, gt_path, args.exclude_background)
+        scores = [score for _, score in subject_scores]
+        score_rows.extend((subject, label, score) for label, score in subject_scores)
         evaluated_subjects += 1
         print(
             f"{subject}: mean Dice = {np.mean(scores):.4f} over {len(scores)} labels",
             flush=True,
         )
 
-    if not dice_scores:
+    if not score_rows:
         raise RuntimeError("No Dice scores were calculated.")
 
+    output_dir = args.pred_dir
+    score_csv_path = output_dir / "score.csv"
+    write_score_csv(score_rows, score_csv_path)
+
+    dice_scores = [score for _, _, score in score_rows]
     dice_array = np.asarray(dice_scores, dtype=np.float64)
     print(
         f"Average Dice over {evaluated_subjects} subjects and {len(dice_scores)} labels: "
         f"{dice_array.mean():.4f} +- {dice_array.std():.4f}",
         flush=True,
     )
+    print(f"Saved class-wise Dice scores to {score_csv_path}", flush=True)
 
 
 if __name__ == "__main__":
