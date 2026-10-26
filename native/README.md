@@ -126,9 +126,14 @@ against 0.66 on the CPU).  This is not specific to the GPU: `reg_f3d` of NiftyRe
 same poor result (NCC 0.27); other atlas/target pairs fail on the CPU too (IXI012, atlas 16: CPU NCC 0.52, GPU 0.65; IXI035, atlas 17:
 CPU 0.66, GPU 0.57).
 
+The affine registrations of the GPU and the CPU `reg_aladin` differ by 0.8 mm (median over the 60 atlas/target pairs of the mean displacement
+over the brain voxels; 90th percentile 2.1 mm, maximum 3.4 mm; no systematic bias, standard deviation of the mean shift over the atlases
+0.2-0.6 mm); `gif_gpu --aladin-exact 1` (replicates NiftyReg's rounding sequence, 0.5 s instead of 0.3 s) reduces this to 0.67 mm (median, IXI002)
+and does not change the picture, so it is off by default.
+
 The stages after the registration agree much more closely: with the control point grids of the CPU run (`--cpp-dir`, IXI002) the warped
 atlas segmentations are identical in all 20 atlases (0 voxels of 196 million), the linearly resampled atlas images are identical (0 voxels),
-the weights differ by at most 1.1e-4 (absolute; 0.28% relative where w > 1e-3), the argmax label map in 1 voxel; the tissue prior is bit-identical in 95.7% of the entries and differs by at most 0.01 (the 0.01 threshold) in the others; the final parcellation in 0.029% of the volume (mean Dice 0.9972, minimum
+the weights differ by at most 1.1e-4 (absolute; 0.28% relative where w > 1e-3), the argmax label map in 1 voxel, the tissue prior is bit-identical in 95.7% of the entries and differs by at most 0.01 (the 0.01 threshold) in the others, and the final parcellation in 0.029% of the volume (mean Dice 0.9972, minimum
 0.975), almost all of it from the tissue segmentation (the posterior of the GPU `seg_EM` differs from NiftySeg's by 2.3e-4 on average);
 where the tissue segmentations agree the final parcellations differ in 1 voxel.
 

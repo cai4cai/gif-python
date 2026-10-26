@@ -46,6 +46,7 @@ struct Cfg {
     std::vector<Atlas> atlases;
     // reg_aladin
     int aladin_lp = 2;
+    int aladin_exact = 0;
     // reg_f3d
     float f3d_jl = 0.0001f, f3d_be = 0.005f, f3d_sx = -5.f, f3d_lncc = 5.f;
     int f3d_maxit = 250, f3d_ln = 4, f3d_lp = 3, f3d_interp = 1;
@@ -77,6 +78,7 @@ void usage()
         "usage: gif_gpu --img IMG --out DIR --plan FILE --atlas NAME IMG SEG [--atlas ...] [options]\n"
         "  --plan FILE            'tissues T' and one 'structure LABEL N t1 .. tN' line per label of the structure info csv\n"
         "  --aladin-lp N          reg_aladin -lp (2)\n"
+        "  --aladin-exact 0|1     1: replicate NiftyReg's float/double rounding sequence in reg_aladin (slower, closer to the CPU)\n"
         "  --f3d-jl X --f3d-be X --f3d-maxit N --f3d-ln N --f3d-lp N --f3d-sx X --f3d-lncc X --f3d-interp 1\n"
         "                         reg_f3d -jl -be -maxit -ln -lp -sx --lncc --interp (0.0001 0.005 250 4 3 -5 5 1)\n"
         "  --lncc-sigma X Y Z     LNCC kernel of the fusion weights (-2.5 -2.5 -2.5; negative: mm, positive: voxels)\n"
@@ -107,6 +109,7 @@ Cfg parse(int argc, char **argv)
         else if (a == "--structure-info") { need(i, 1); c.structure_info = argv[++i]; }
         else if (a == "--atlas") { need(i, 3); Atlas t; t.name = argv[++i]; t.img = argv[++i]; t.seg = argv[++i]; c.atlases.push_back(t); }
         else if (a == "--aladin-lp") { need(i, 1); c.aladin_lp = atoi(argv[++i]); }
+        else if (a == "--aladin-exact") { need(i, 1); c.aladin_exact = atoi(argv[++i]); }
         else if (a == "--f3d-jl") { need(i, 1); c.f3d_jl = (float)atof(argv[++i]); }
         else if (a == "--f3d-be") { need(i, 1); c.f3d_be = (float)atof(argv[++i]); }
         else if (a == "--f3d-maxit") { need(i, 1); c.f3d_maxit = atoi(argv[++i]); }
@@ -348,6 +351,7 @@ int main(int argc, char **argv)
     if (cfg.cpp_dir.empty()) {
         aladin::Params ap;
         ap.levels_to_perform = cfg.aladin_lp;
+        ap.exact = cfg.aladin_exact != 0;
         aladin::Image tg;
         tg.dev = d_target; tg.nx = rg.n[0]; tg.ny = rg.n[1]; tg.nz = rg.n[2];
         for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++) tg.sform.m[i][j] = target.xyz[i][j];
