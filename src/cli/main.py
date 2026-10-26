@@ -11,6 +11,7 @@ from typing import List, Optional, Sequence
 #: sub-command name -> module that provides ``HELP``, ``add_arguments(parser)`` and ``run(args)``
 COMMANDS = {
     "segment": "src.cli.segment",
+    "clean-labels": "src.cli.clean_labels",
 }
 
 
