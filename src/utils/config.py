@@ -66,7 +66,8 @@ class GifConfig:
     sigma: float = 0
 
     # LNCC distance used for the fusion weights
-    #: std. dev. of the Gaussian smoothing kernel per axis; mm if > 0, voxels if < 0
+    #: std. dev. of the Gaussian smoothing kernel per axis. A negative value is read as millimetres
+    #: and divided by the voxel size of the image; a positive value is used as given, in voxels.
     lncc_sigma: Tuple[float, float, float] = (-2.5, -2.5, -2.5)
 
     # Weights

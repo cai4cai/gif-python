@@ -47,3 +47,10 @@ Issues = "https://github.com/cai4cai/gif-python/issues"
 [tool.setuptools.packages.find]
 # The package layout is flat (`import src...`) and is kept as is.
 include = ["src", "src.*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+    "integration: needs the NiftyReg and NiftySeg executables (skipped automatically when they are not installed)",
+]
