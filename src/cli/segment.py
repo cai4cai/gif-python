@@ -26,6 +26,8 @@ The defaults of --atlas-img/--atlas-seg are those of the Mindboggle-101 layout.
 Parameters of the pipeline can be changed with --config NAME=VALUE (repeatable); --print-config
 shows the names and the values in effect. The NiftyReg/NiftySeg executables are looked up in
 --niftyreg-path/--niftyseg-path, the environment variables NIFTYREG_PATH/NIFTYSEG_PATH, and PATH.
+With --backend gpu the registration, fusion and EM run on the GPU in the CUDA program native/build/gif_gpu
+(--gpu-binary or GIF_GPU_BINARY to point to another location); see native/README.md for the limits.
 
 Example:
   gif-python segment --img subject/t1weighted_brain.nii.gz --atlas-dir data/atlases/Mindboggle101 \\
@@ -75,6 +77,13 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="keep affine, control point grid and warped atlas images in OUT/registered_atlases/<atlas>/",
     )
+    cfg.add_argument(
+        "--backend",
+        choices=("cpu", "gpu"),
+        default=None,
+        help="cpu: NiftyReg/NiftySeg executables (default); gpu: the CUDA program of native/ (see native/README.md)",
+    )
+    cfg.add_argument("--gpu-binary", default=None, help="path of the gif_gpu executable (backend gpu)")
     cfg.add_argument("--niftyreg-path", default=None, help="folder with reg_aladin, reg_f3d and reg_resample")
     cfg.add_argument("--niftyseg-path", default=None, help="folder with seg_EM")
 
@@ -99,6 +108,10 @@ def build_config(args: argparse.Namespace) -> GifConfig:
         changes["use_old_results"] = False
     if args.keep_registration_files:
         changes["keep_registration_files"] = True
+    if args.backend:
+        changes["backend"] = args.backend
+    if args.gpu_binary:
+        changes["gpu_binary"] = args.gpu_binary
     if args.niftyreg_path:
         changes["niftyreg_path"] = args.niftyreg_path
     if args.niftyseg_path:
@@ -119,8 +132,16 @@ def run(args: argparse.Namespace) -> int:
     config = build_config(args)
     if args.print_config:
         print(json.dumps(config.to_dict(), indent=2, default=str))
-        print(f"# resolved NiftyReg directory: {config.niftyreg_dir()}")
-        print(f"# resolved NiftySeg directory: {config.niftyseg_dir()}")
+        if config.backend == "gpu":
+            from src.multi_atlas.gpu_backend import find_gpu_binary
+
+            try:
+                print(f"# resolved gif_gpu executable: {find_gpu_binary(config)}")
+            except FileNotFoundError as exc:
+                print(f"# gif_gpu executable not found: {exc}")
+        else:
+            print(f"# resolved NiftyReg directory: {config.niftyreg_dir()}")
+            print(f"# resolved NiftySeg directory: {config.niftyseg_dir()}")
         return 0
 
     _require(args, "img", "atlas_dir", "out")

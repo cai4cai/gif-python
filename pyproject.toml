@@ -61,13 +61,14 @@ include = ["src", "src.*"]
 testpaths = ["tests"]
 addopts = "-ra"
 markers = [
+    "gpu: needs the gif_gpu executable (native/) and a CUDA device (skipped automatically otherwise)",
     "integration: needs the NiftyReg and NiftySeg executables (skipped automatically when they are not installed)",
 ]
 
 [tool.ruff]
 line-length = 120
 target-version = "py39"
-extend-exclude = ["notebooks"]
+extend-exclude = ["notebooks", "native"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "C4", "SIM", "RUF100"]

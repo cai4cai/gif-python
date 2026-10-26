@@ -55,7 +55,8 @@ def multi_atlas_segmentation(
     :param tissue_info_csv_path: Path to the tissue info csv file that contains the tissue class number, and the tissue
         name, e.g.: 3, White Matter
     :param save_dir: Path to the directory where the results will be saved
-    :param config: GifConfig with the parameters of the pipeline (default: ``default_config()``)
+    :param config: GifConfig with the parameters of the pipeline (default: ``default_config()``); with
+        ``config.backend == "gpu"`` the pipeline runs on the GPU (see ``native/README.md``)
     :return: the final parcellation (also saved as ``final_parcellation.nii.gz`` in ``save_dir``)
     :raises FileNotFoundError: if an input file does not exist
     :raises ValueError: if the structure/tissue information is inconsistent with the atlases
@@ -64,6 +65,19 @@ def multi_atlas_segmentation(
     from multiprocessing import Pool  # imported here: nothing is imported or started at module import
 
     config = config or default_config()
+    if config.backend == "gpu":
+        # same inputs and output files, computed by the CUDA program of native/ (no CUDA import otherwise)
+        from src.multi_atlas.gpu_backend import multi_atlas_segmentation_gpu
+
+        return multi_atlas_segmentation_gpu(
+            img_path,
+            mask_path,
+            atlas_paths_dicts_list,
+            structure_info_csv_path,
+            tissue_info_csv_path,
+            save_dir,
+            config,
+        )
     relax_quaternion_check()
 
     logger.info("Multi-atlas segmentation using the GIF-like fusion method...")

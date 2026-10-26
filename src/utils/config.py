@@ -23,6 +23,10 @@ NIFTYREG_ENV_VAR = "NIFTYREG_PATH"
 NIFTYSEG_ENV_VAR = "NIFTYSEG_PATH"
 #: Location that was hardcoded before; used as the last resort.
 LEGACY_BIN_DIR = "/usr/local/bin"
+#: values of :attr:`GifConfig.backend`
+BACKENDS = ("cpu", "gpu")
+#: Environment variable that points to the ``gif_gpu`` executable of the GPU backend.
+GIF_GPU_ENV_VAR = "GIF_GPU_BINARY"
 
 
 class BinaryNotFoundError(FileNotFoundError):
@@ -91,6 +95,19 @@ class GifConfig:
     num_pools: int = 2  #: number of atlases processed in parallel (more pools need more RAM)
     omp: int = 8  #: OpenMP threads of each NiftyReg call (``omp * num_pools`` <= cores)
 
+    # Execution backend: "cpu" (NiftyReg / NiftySeg executables) or "gpu" (CUDA program of native/, native/README.md)
+    backend: str = "cpu"
+    #: path of the ``gif_gpu`` executable of the GPU backend. ``None`` = environment variable GIF_GPU_BINARY, then
+    #: ``native/build/gif_gpu`` of the source checkout, then PATH
+    gpu_binary: Optional[str] = None
+    #: GPU backend only: write ``registered_atlases/<atlas>/warped_atlas_seg.nii.gz`` (as the CPU backend does)
+    gpu_write_warped_seg: bool = True
+    #: GPU backend only: number of atlases that are registered together (lower it to save GPU memory)
+    gpu_batch: int = 20
+    #: GPU backend only: numerics of the non-rigid registration: 0 = exact emulation of NiftyReg's arithmetic,
+    #: 1 = validated fast option (about 2x faster, same quality within noise; see native/README.md)
+    gpu_numerics: int = 0
+
     # Locations of the NiftyReg / NiftySeg binaries. ``None`` = look at the environment variable
     # (NIFTYREG_PATH / NIFTYSEG_PATH), then at PATH, then at /usr/local/bin.
     niftyreg_path: Optional[str] = None  #: directory with reg_aladin, reg_f3d, reg_resample
@@ -105,6 +122,12 @@ class GifConfig:
             raise ValueError(f"num_pools must be >= 1, got {self.num_pools}")
         if self.omp < 1:
             raise ValueError(f"omp must be >= 1, got {self.omp}")
+        if self.backend not in BACKENDS:
+            raise ValueError(f"backend must be one of {', '.join(BACKENDS)}, got {self.backend!r}")
+        if self.gpu_numerics not in (0, 1):
+            raise ValueError(f"gpu_numerics must be 0 or 1, got {self.gpu_numerics}")
+        if self.gpu_batch < 1:
+            raise ValueError(f"gpu_batch must be >= 1, got {self.gpu_batch}")
         if self.resample_method not in (0, 1):
             raise ValueError(f"resample_method must be 0 or 1, got {self.resample_method}")
 
