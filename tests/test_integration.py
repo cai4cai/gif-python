@@ -15,7 +15,10 @@ def make_head(shift=(0, 0, 0), shape=(48, 48, 48), seed=0):
     """Three nested blobs (CSF-ish shell, grey matter, white matter core) with some texture."""
     rng = np.random.default_rng(seed)
     grid = np.indices(shape).astype(np.float32)
-    centre = np.array(shape, dtype=np.float32)[:, None, None, None] / 2 + np.array(shift, dtype=np.float32)[:, None, None, None]
+    centre = (
+        np.array(shape, dtype=np.float32)[:, None, None, None] / 2
+        + np.array(shift, dtype=np.float32)[:, None, None, None]
+    )
     radius = np.sqrt(((grid - centre) ** 2).sum(axis=0))
     labels = np.zeros(shape, dtype=np.uint8)
     labels[radius < 17] = 1  # "cortex"
@@ -40,7 +43,7 @@ def test_segmentation_of_a_blob_phantom(tmp_path, write_nifti):
             }
         )
     img_path = write_nifti(target, tmp_path / "target.nii.gz")
-    (tmp_path / "structures_info.csv").write_text('label,name,tissues\n0,Background,[0]\n1,Cortex,[1]\n2,White,[2]\n')
+    (tmp_path / "structures_info.csv").write_text("label,name,tissues\n0,Background,[0]\n1,Cortex,[1]\n2,White,[2]\n")
     (tmp_path / "tissues_info.csv").write_text("label,name\n0,Other\n1,Grey Matter\n2,White Matter\n")
 
     result = multi_atlas_segmentation(

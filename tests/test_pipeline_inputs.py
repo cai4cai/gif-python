@@ -9,7 +9,7 @@ import pytest
 from src.multi_atlas.multi_atlas_segmentation import multi_atlas_segmentation
 from src.utils.config import GifConfig
 
-STRUCTURES = "label,name,tissues\n0,Background,[0]\n5,Left-A,[1]\n7,Left-B,\"[1, 2]\"\n"
+STRUCTURES = 'label,name,tissues\n0,Background,[0]\n5,Left-A,[1]\n7,Left-B,"[1, 2]"\n'
 TISSUES = "label,name\n0,Other\n1,Grey Matter\n2,White Matter\n"
 
 

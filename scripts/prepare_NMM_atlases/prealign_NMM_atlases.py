@@ -9,6 +9,7 @@ from tqdm import tqdm
 
 nib.Nifti1Header.quaternion_threshold = -np.finfo(np.float32).eps * 10  # CANDI dataset doesn't pass this check
 
+
 def main():
     parser = argparse.ArgumentParser(description="Pre-align the NMM atlases to MNI space (affine, updates the sform).")
     parser.add_argument("--fixed-image", required=True, help="MNI template image")
@@ -19,20 +20,24 @@ def main():
     images_to_align = natsorted(glob(os.path.join(args.atlas_dir, "*", "srr.nii*")))
     segmentations_to_align = natsorted(glob(os.path.join(args.atlas_dir, "*", "parcellation.nii.gz")))
 
-    assert(len(images_to_align) == len(segmentations_to_align)), (("Expected the same number of images and "
-                                                                   "segmentations, found ")
-                                                                  + str(len(images_to_align)) + " images and "
-                                                                  + str(len(segmentations_to_align)) + " segmentations.")
+    assert len(images_to_align) == len(segmentations_to_align), (
+        ("Expected the same number of images and segmentations, found ")
+        + str(len(images_to_align))
+        + " images and "
+        + str(len(segmentations_to_align))
+        + " segmentations."
+    )
 
     for moving_image_path, seg_path in zip(tqdm(images_to_align), segmentations_to_align):
         # Perform registration with niftyreg
         output_dir = os.path.dirname(moving_image_path)
 
-        sform_affine, niftyreg_resampled_img = get_affine_with_niftyreg(fixed_image_path, moving_image_path, output_dir, no_overwrite=True)
+        sform_affine, niftyreg_resampled_img = get_affine_with_niftyreg(
+            fixed_image_path, moving_image_path, output_dir, no_overwrite=True
+        )
         registered_sform = get_registered_sform(moving_image_path, sform_affine)
         update_sform(moving_image_path, registered_sform, output_dir)
         update_sform(seg_path, registered_sform, output_dir)
-
 
 
 def get_affine_with_niftyreg(fixed_image_path, moving_image_path, output_dir, no_overwrite=False):
@@ -49,22 +54,35 @@ def get_affine_with_niftyreg(fixed_image_path, moving_image_path, output_dir, no
 
 
     """
-    resampled_img_output_path = os.path.join(output_dir, os.path.basename(moving_image_path).replace(".nii.gz", ".nii").replace(".nii", "_mni_resampled.nii.gz"))
-    output_affine_path = os.path.join(output_dir, "affine_from_mni_to_" + os.path.basename(moving_image_path).replace(".nii.gz", ".nii").replace(".nii", "") + ".txt")
+    resampled_img_output_path = os.path.join(
+        output_dir,
+        os.path.basename(moving_image_path).replace(".nii.gz", ".nii").replace(".nii", "_mni_resampled.nii.gz"),
+    )
+    output_affine_path = os.path.join(
+        output_dir,
+        "affine_from_mni_to_"
+        + os.path.basename(moving_image_path).replace(".nii.gz", ".nii").replace(".nii", "")
+        + ".txt",
+    )
 
     if no_overwrite and os.path.exists(resampled_img_output_path) and os.path.exists(output_affine_path):
         print("Affine registration already performed, skipping.")
     else:
-        os.system("reg_aladin -ref " + fixed_image_path +
-                  " -flo " + moving_image_path +
-                  " -res " + resampled_img_output_path +
-                  " -aff " + output_affine_path +
-                  " -maxit 5" +
-                  " -ln 3" +
-                  " -lp 2" +
-                  " -speeeeed" +
-                  " -voff"
-                  )
+        os.system(
+            "reg_aladin -ref "
+            + fixed_image_path
+            + " -flo "
+            + moving_image_path
+            + " -res "
+            + resampled_img_output_path
+            + " -aff "
+            + output_affine_path
+            + " -maxit 5"
+            + " -ln 3"
+            + " -lp 2"
+            + " -speeeeed"
+            + " -voff"
+        )
 
     # read the affine matrix
     output_affine = np.loadtxt(output_affine_path)
@@ -106,14 +124,19 @@ def update_sform(moving_image_path, registered_sform, output_dir):
 
     # update the sform
     # save the new affine matrix to the header
-    nii.set_qform(registered_sform)  # to avoid ambiguity, set the qform as well (note that the qform does not handle shearing, so it can still end up being different from the sform)
+    nii.set_qform(
+        registered_sform
+    )  # to avoid ambiguity, set the qform as well (note that the qform does not handle shearing, so it can still end up being different from the sform)
     nii.set_sform(registered_sform)
 
-    nii.header['sform_code'] = 4  # mni aligned
-    nii.header['qform_code'] = 0  # unknown
+    nii.header["sform_code"] = 4  # mni aligned
+    nii.header["qform_code"] = 0  # unknown
 
     # save the image
-    sform_registered_output_path = os.path.join(output_dir, os.path.basename(moving_image_path).replace(".nii.gz", ".nii").replace(".nii", "_mni_aligned.nii.gz"))
+    sform_registered_output_path = os.path.join(
+        output_dir,
+        os.path.basename(moving_image_path).replace(".nii.gz", ".nii").replace(".nii", "_mni_aligned.nii.gz"),
+    )
     nib.save(nii, sform_registered_output_path)
 
     return sform_registered_output_path
@@ -121,5 +144,3 @@ def update_sform(moving_image_path, registered_sform, output_dir):
 
 if __name__ == "__main__":
     main()
-
-

@@ -33,7 +33,9 @@ def main() -> None:
     parser.add_argument("--atlas-root", required=True, type=Path, help="folder with one sub-folder per atlas")
     parser.add_argument("--atlas-img", required=True, help="file name of the atlas image in each atlas folder")
     parser.add_argument("--atlas-seg", required=True, help="file name of the atlas segmentation in each atlas folder")
-    parser.add_argument("--atlas-mask", default=None, help="file name of the atlas mask in each atlas folder (optional)")
+    parser.add_argument(
+        "--atlas-mask", default=None, help="file name of the atlas mask in each atlas folder (optional)"
+    )
     parser.add_argument("--structure-info", type=Path, default=None, help="default: ATLAS_ROOT/structures_info.csv")
     parser.add_argument("--tissue-info", type=Path, default=None, help="default: ATLAS_ROOT/tissues_info.csv")
     parser.add_argument("--out", required=True, type=Path, help="output folder")

@@ -8,6 +8,7 @@ Run from the repository root (or after ``pip install -e .``)::
 The atlas root must contain the subject folders and the structures_info.csv / tissues_info.csv files
 (``gif-python fetch-mindboggle --clean`` creates this layout and the cleaned labels).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -133,9 +134,7 @@ MB59_SUBJECTS = [
 
 
 def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Run Mindboggle42 parcellation with the Mindboggle59 atlas set."
-    )
+    parser = argparse.ArgumentParser(description="Run Mindboggle42 parcellation with the Mindboggle59 atlas set.")
     parser.add_argument("--atlas-root", required=True, help="folder with the Mindboggle-101 subjects")
     parser.add_argument("--results-root", default=RESULTS_ROOT)
     parser.add_argument("--limit", type=int, default=None)
@@ -152,9 +151,7 @@ def validate_subject_files(atlas_root: str, subjects: list[str]) -> None:
         if not os.path.isfile(image_path) or not os.path.isfile(label_path):
             missing.append(subject)
     if missing:
-        raise FileNotFoundError(
-            "Missing image or cleaned label for: " + ", ".join(missing)
-        )
+        raise FileNotFoundError("Missing image or cleaned label for: " + ", ".join(missing))
 
 
 def build_atlas_dicts(atlas_root: str) -> list[dict[str, str]]:
@@ -197,10 +194,7 @@ def run_mb42_segmentation(
 
         os.makedirs(results_dir, exist_ok=True)
         atlas_paths_dicts_list = build_atlas_dicts(atlas_root)
-        print(
-            f"{subject}: running segmentation with "
-            f"{len(atlas_paths_dicts_list)} MB59 atlases"
-        )
+        print(f"{subject}: running segmentation with {len(atlas_paths_dicts_list)} MB59 atlases")
         multi_atlas_segmentation(
             img_path=img_path,
             mask_path=None,

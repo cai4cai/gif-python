@@ -46,7 +46,9 @@ def test_legacy_definitions_have_old_values(name, value):
 @pytest.mark.parametrize("name,value", sorted(OLD_DEFINITIONS.items()))
 def test_gifconfig_defaults_equal_old_definitions(name, value):
     field = definitions._LEGACY_TO_FIELD[name]
-    assert list(getattr(GifConfig(), field)) == value if isinstance(value, list) else getattr(GifConfig(), field) == value
+    assert (
+        list(getattr(GifConfig(), field)) == value if isinstance(value, list) else getattr(GifConfig(), field) == value
+    )
 
 
 def test_every_old_definition_has_a_field():

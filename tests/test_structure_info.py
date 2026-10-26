@@ -48,7 +48,7 @@ def test_end_to_end_reproduces_the_shipped_table(tmp_path, write_nifti, shipped)
     out = make_structure_info([seg], tmp_path / "out", color_table_path=lut, strict=True)
     generated = pd.read_csv(out["structures_info.csv"], converters={"tissues": literal_eval})
     pd.testing.assert_frame_equal(generated, shipped)
-    assert (out["tissues_info.csv"].read_text() == mindboggle101_file("tissues_info.csv").read_text())
+    assert out["tissues_info.csv"].read_text() == mindboggle101_file("tissues_info.csv").read_text()
 
 
 def test_read_color_table_skips_comments_and_validates(tmp_path):
@@ -121,8 +121,10 @@ def test_itksnap_file_uses_the_colour_table(tmp_path, write_nifti):
     write_lut(lut, [(17, "Left-Hippocampus", (220, 216, 20))])
     out = make_structure_info([seg], tmp_path / "o", color_table_path=lut)
     text = out["itksnap_label_descriptions.txt"].read_text()
-    assert '17  220  216   20' in text and '"Left-Hippocampus"' in text and '"label-9999"' in text
-    assert make_structure_info([seg], tmp_path / "o2", write_itksnap=False).get("itksnap_label_descriptions.txt") is None
+    assert "17  220  216   20" in text and '"Left-Hippocampus"' in text and '"label-9999"' in text
+    assert (
+        make_structure_info([seg], tmp_path / "o2", write_itksnap=False).get("itksnap_label_descriptions.txt") is None
+    )
 
 
 def test_custom_tissue_table_is_validated(tmp_path, write_nifti):
@@ -150,7 +152,16 @@ def test_cli(tmp_path, write_nifti, capsys):
     write_nifti(np.array([[[0, 17, 18]]], dtype=np.uint8), tmp_path / "seg_1.nii.gz")
     lut = tmp_path / "lut.txt"
     write_lut(lut, [(17, "Left-Hippocampus", (1, 2, 3)), (18, "Left-Amygdala", (4, 5, 6))])
-    code = main(["make-structure-info", str(tmp_path / "seg_*.nii.gz"), "--color-table", str(lut), "--out-dir", str(tmp_path / "o")])
+    code = main(
+        [
+            "make-structure-info",
+            str(tmp_path / "seg_*.nii.gz"),
+            "--color-table",
+            str(lut),
+            "--out-dir",
+            str(tmp_path / "o"),
+        ]
+    )
     assert code == 0
     df = pd.read_csv(tmp_path / "o" / "structures_info.csv", index_col="label", converters={"tissues": literal_eval})
     assert df.loc[17, "tissues"] == [2, 4] and df.loc[0, "name"] == "Unknown"

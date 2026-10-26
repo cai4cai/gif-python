@@ -31,7 +31,6 @@ def get_multi_atlas_proba_seg(warped_atlases, weights, labels_array, multi_atlas
                 if sum_warped_atlases[x, y, z] > 0:
                     for l_idx in range(len(labels_array)):
                         for a in range(warped_atlases.shape[0]):
-
                             if warped_atlases[a, x, y, z] == labels_array[l_idx]:
                                 multi_atlas_proba_seg[x, y, z, l_idx] += weights[a, x, y, z]
                     # where ever the sum of probabilities is 0, set the first class (background) to 1
@@ -64,9 +63,9 @@ def get_multi_atlas_tissue_prior(
     multi_atlas_tissue_prior = np.zeros(tuple(multi_atlas_proba_seg.shape[:3] + (num_tissue,)), dtype=np.float32)
     for l_idx in range(len(labels_array)):
         l = labels_array[l_idx]
-        if l not in structure_dict['tissues']:
+        if l not in structure_dict["tissues"]:
             continue
-        assigned_tissues = structure_dict['tissues'][l]
+        assigned_tissues = structure_dict["tissues"][l]
         for t in assigned_tissues:
             # H x W x D x num_tissue
             multi_atlas_tissue_prior[:, :, :, t] += multi_atlas_proba_seg[:, :, :, l_idx] / len(assigned_tissues)

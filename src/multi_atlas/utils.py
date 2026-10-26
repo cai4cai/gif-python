@@ -60,7 +60,7 @@ def gaussian_smooth_with_mask(input: np.ndarray, mask: np.ndarray, **kwargs) -> 
     WW[np.invert(mask.astype(bool))] = 1
 
     # divide the two convolutions and mask the result
-    smoothed = (VV * mask / WW)
+    smoothed = VV * mask / WW
 
     return smoothed
 
@@ -103,10 +103,10 @@ def get_lncc_distance(
     # Gaussian kernel standard deviation in mm (if > 0) or in voxels (if < 0)
     kernel_std = config.lncc_sigma
     # convert kernel standard deviation from mm to voxels
-    kernel_std = np.array([abs(k/s) if k < 0 else k for k, s in zip(kernel_std, spacing)])
+    kernel_std = np.array([abs(k / s) if k < 0 else k for k, s in zip(kernel_std, spacing)])
 
     # kernel radius in voxels
-    kernel_radius = np.floor([s*3 for s in kernel_std]).astype(int)
+    kernel_radius = np.floor([s * 3 for s in kernel_std]).astype(int)
 
     # define quantities to be averaged/smoothed for the LNCC computation
     image_mean = image
@@ -119,8 +119,7 @@ def get_lncc_distance(
     fg_mask_combined = np.logical_and(mask, ~np.isnan(atlas_warped_image)).astype(np.float32)
 
     # smooth the images with a Gaussian kernel
-    smoothing_params = {'sigma': kernel_std,
-                        'radius': kernel_radius}
+    smoothing_params = {"sigma": kernel_std, "radius": kernel_radius}
 
     image_mean = gaussian_smooth_with_mask(image_mean, fg_mask_combined, **smoothing_params)
     image_squ = gaussian_smooth_with_mask(image_squ, fg_mask_combined, **smoothing_params)

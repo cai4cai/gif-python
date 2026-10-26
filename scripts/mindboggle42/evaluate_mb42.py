@@ -6,6 +6,7 @@ Example:
         --pred-dir outputs/mb59_to_mb42_mindboggle101_gif \
         --gt-dir data/atlases/Mindboggle101
 """
+
 from __future__ import annotations
 
 import argparse
@@ -21,9 +22,7 @@ GT_NAME = "labels.DKT31.manual+aseg_cleaned.nii.gz"
 
 
 def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Calculate average Dice for MB42 GIF predictions."
-    )
+    parser = argparse.ArgumentParser(description="Calculate average Dice for MB42 GIF predictions.")
     parser.add_argument(
         "--pred-dir",
         required=True,
@@ -77,8 +76,7 @@ def subject_dice(
 
     if pred.shape != gt.shape:
         raise ValueError(
-            f"Shape mismatch for {pred_path.parent.name}: "
-            f"prediction {pred.shape}, ground truth {gt.shape}"
+            f"Shape mismatch for {pred_path.parent.name}: prediction {pred.shape}, ground truth {gt.shape}"
         )
     if not np.allclose(pred_affine, gt_affine):
         raise ValueError(f"Affine mismatch for {pred_path.parent.name}")
@@ -120,9 +118,7 @@ def main(argv: Iterable[str] | None = None) -> None:
 
     pred_paths = collect_prediction_paths(args.pred_dir, args.prediction_name)
     if not pred_paths:
-        raise FileNotFoundError(
-            f"No prediction files named {args.prediction_name} found under {args.pred_dir}"
-        )
+        raise FileNotFoundError(f"No prediction files named {args.prediction_name} found under {args.pred_dir}")
 
     score_rows = []
     evaluated_subjects = 0

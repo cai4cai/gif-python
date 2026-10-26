@@ -37,9 +37,7 @@ def main() -> None:
         int(i.findtext("number")): [int(t) for t in i.findtext("tissues").split(",")]
         for i in root.find("labels").findall("item")
     }
-    tissue_names = {
-        int(i.findtext("number")): i.findtext("name") for i in root.find("tissues").findall("item")
-    }
+    tissue_names = {int(i.findtext("number")): i.findtext("name") for i in root.find("tissues").findall("item")}
     renumber = {old: new for new, old in enumerate(sorted(tissue_names))}
 
     names = {}

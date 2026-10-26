@@ -51,8 +51,16 @@ def fake_archive(tmp_path):
         add_bytes(tar, "Fake-2_volumes/.DS_Store", b"junk")
         for index, sparse in ((1, 1033), (2, None)):
             subject = f"Fake-2-{index}"
-            add_bytes(tar, f"Fake-2_volumes/{subject}/t1weighted.nii.gz", nifti_bytes(np.ones((9, 9, 9), np.float32), tmp_path))
-            add_bytes(tar, f"Fake-2_volumes/{subject}/labels.DKT31.manual+aseg.nii.gz", nifti_bytes(label_volume(sparse), tmp_path))
+            add_bytes(
+                tar,
+                f"Fake-2_volumes/{subject}/t1weighted.nii.gz",
+                nifti_bytes(np.ones((9, 9, 9), np.float32), tmp_path),
+            )
+            add_bytes(
+                tar,
+                f"Fake-2_volumes/{subject}/labels.DKT31.manual+aseg.nii.gz",
+                nifti_bytes(label_volume(sparse), tmp_path),
+            )
             add_bytes(tar, f"Fake-2_volumes/{subject}/labels.DKT31.manual.nii.gz", b"not needed")
             add_bytes(tar, f"Fake-2_volumes/{subject}/._t1weighted.nii.gz", b"resource fork")
         add_bytes(tar, "Fake-2_volumes/../../escape.txt", b"bad")
@@ -224,7 +232,16 @@ def test_cli_list(capsys):
 
 
 def test_cli_fetch_with_fake_download(tmp_path, patched, capsys):
-    code = main(["fetch-mindboggle", "--data-dir", str(tmp_path / "data"), "--clean", "--write-checksums", str(tmp_path / "sums.sha256")])
+    code = main(
+        [
+            "fetch-mindboggle",
+            "--data-dir",
+            str(tmp_path / "data"),
+            "--clean",
+            "--write-checksums",
+            str(tmp_path / "sums.sha256"),
+        ]
+    )
     assert code == 0
     assert "2 subjects" in capsys.readouterr().out
     assert (tmp_path / "data" / "atlases" / "Mindboggle101" / "Fake-2-1" / mb.CLEANED_LABELS_NAME).is_file()

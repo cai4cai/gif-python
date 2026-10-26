@@ -157,4 +157,3 @@ def run(args: argparse.Namespace) -> int:
 
         open_in_itksnap(args.img, final_parcellation)
     return 0
-

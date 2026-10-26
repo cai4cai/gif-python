@@ -112,12 +112,18 @@ def propagate_atlas_seg(
     run_tool(
         [
             config.binary("reg_resample"),
-            "-ref", img_path,
-            "-flo", atlas_seg_path,
-            "-trans", cpp_path,
-            "-res", warped_atlas_seg_path,
-            "-inter", 0,
-            "-omp", config.omp,
+            "-ref",
+            img_path,
+            "-flo",
+            atlas_seg_path,
+            "-trans",
+            cpp_path,
+            "-res",
+            warped_atlas_seg_path,
+            "-inter",
+            0,
+            "-omp",
+            config.omp,
             "-voff",
         ]  # fmt: skip
     )
@@ -148,11 +154,16 @@ def get_linearly_interpolated_warped_atlas_img(
     run_tool(
         [
             config.binary("reg_resample"),
-            "-ref", img_path,
-            "-flo", atlas_img_path,
-            "-trans", cpp_path,
-            "-inter", 1,
-            "-res", lin_interp_warped_atlas_img_path,
+            "-ref",
+            img_path,
+            "-flo",
+            atlas_img_path,
+            "-trans",
+            cpp_path,
+            "-inter",
+            1,
+            "-res",
+            lin_interp_warped_atlas_img_path,
             "-voff",
         ]  # fmt: skip
     )

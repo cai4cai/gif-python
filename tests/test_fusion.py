@@ -99,9 +99,7 @@ def test_structure_seg_matches_nested_loop_reference(rng):
     lab_probs = rng.random((*shape, n_labels))
     lab_probs /= lab_probs.sum(axis=-1, keepdims=True)
     labels = np.arange(100, 100 + n_labels)
-    tissue_dict = {
-        int(label): list(rng.choice(n_tissues, size=rng.integers(1, 4), replace=False)) for label in labels
-    }
+    tissue_dict = {int(label): list(rng.choice(n_tissues, size=rng.integers(1, 4), replace=False)) for label in labels}
     result = get_structure_seg_from_tissue_seg(tiss_seg, lab_probs, labels, tissue_dict)
     np.testing.assert_array_equal(result, nested_loop_reference(tiss_seg, lab_probs, labels, tissue_dict))
 

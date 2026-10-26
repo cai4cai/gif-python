@@ -156,9 +156,7 @@ def test_more_voxels_than_one_chunk(monkeypatch):
 
     monkeypatch.setattr(cleaning, "_CHUNK", 7)
     data = synthetic_volume(5, blobs=30)
-    np.testing.assert_array_equal(
-        clean_labels_array(data, SPARSE)[0], reference_loop(data, SPARSE).astype(data.dtype)
-    )
+    np.testing.assert_array_equal(clean_labels_array(data, SPARSE)[0], reference_loop(data, SPARSE).astype(data.dtype))
 
 
 def test_output_path():

@@ -11,7 +11,9 @@ SIX_SPARSE = [1001, 1032, 1033, 2001, 2032, 2033]
 
 @pytest.fixture(scope="module")
 def structures():
-    return pd.read_csv(mindboggle101_file("structures_info.csv"), index_col="label", converters={"tissues": literal_eval})
+    return pd.read_csv(
+        mindboggle101_file("structures_info.csv"), index_col="label", converters={"tissues": literal_eval}
+    )
 
 
 @pytest.fixture(scope="module")
@@ -33,7 +35,9 @@ def test_problematic_labels_are_listed(structures):
 
 
 def test_dkt31_cortical_labels_complete(structures):
-    expected = {h * 1000 + i for h in (1, 2) for i in list(range(1, 36)) if i != 4}  # 1004/2004 corpus callosum: not in DKT31
+    expected = {
+        h * 1000 + i for h in (1, 2) for i in list(range(1, 36)) if i != 4
+    }  # 1004/2004 corpus callosum: not in DKT31
     assert expected <= set(structures.index)
 
 
