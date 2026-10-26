@@ -1,16 +1,22 @@
-import os
-import subprocess
+"""Helpers: image loading, masked smoothing, LNCC distance and the seg_EM wrapper."""
 
-import numpy as np
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Optional, Sequence, Union
+
 import nibabel as nib
-
+import numpy as np
 from scipy.ndimage import gaussian_filter
 
-from src.utils.config import default_config
+from src.utils.config import GifConfig, default_config
 from src.utils.nifti import relax_quaternion_check
+from src.utils.process import run_tool
+
+PathLike = Union[str, Path]
 
 
-def nibabel_load_and_get_fdata(filepath, dtype=np.float32):
+def nibabel_load_and_get_fdata(filepath: PathLike, dtype=np.float32) -> np.ndarray:
     """
     Load a nifti file and return the data as a numpy array of the specified dtype.
     :param filepath: path to the nifti file
@@ -19,44 +25,50 @@ def nibabel_load_and_get_fdata(filepath, dtype=np.float32):
     """
     relax_quaternion_check()
     if dtype == np.uint16:
-        return nib.load(filepath).get_fdata(dtype=np.float16).astype(dtype)
+        return nib.load(str(filepath)).get_fdata(dtype=np.float16).astype(dtype)
     else:
-        return nib.load(filepath).get_fdata(dtype=dtype).astype(dtype)
+        return nib.load(str(filepath)).get_fdata(dtype=dtype).astype(dtype)
 
 
-def gaussian_smooth_with_mask(input, mask, **kwargs):
-        """
-        Smooth an image with a Gaussian kernel, ignoring values outside the mask.
-        In principle the kernel weight will be replaced by zero wherever it overlaps with a zero in the mask.
-        Rather than changing the kernel an equivalent approach can be used by performing two convolutions as explained
-        here: https://stackoverflow.com/a/36307291
+def gaussian_smooth_with_mask(input: np.ndarray, mask: np.ndarray, **kwargs) -> np.ndarray:
+    """
+    Smooth an image with a Gaussian kernel, ignoring values outside the mask.
+    In principle the kernel weight will be replaced by zero wherever it overlaps with a zero in the mask.
+    Rather than changing the kernel an equivalent approach can be used by performing two convolutions as explained
+    here: https://stackoverflow.com/a/36307291
 
-        :param input: input image
-        :param mask: mask of the input image
-        :param kwargs: arguments for scipy's gaussian_filter function
-        :return: smoothed image
-        """
+    :param input: input image
+    :param mask: mask of the input image
+    :param kwargs: arguments for scipy's gaussian_filter function
+    :return: smoothed image
+    """
 
-        # first convolution (with image intensities in the mask and zeros outside the mask)
-        V = input.copy()
-        V[mask == 0] = 0
-        VV = gaussian_filter(V, **kwargs)
+    # first convolution (with image intensities in the mask and zeros outside the mask)
+    V = input.copy()
+    V[mask == 0] = 0
+    VV = gaussian_filter(V, **kwargs)
 
-        # second convolution (with ones inside the mask and zeros outside the mask)
-        W = np.ones_like(input)
-        W[mask == 0] = 0
-        WW = gaussian_filter(W, **kwargs)
+    # second convolution (with ones inside the mask and zeros outside the mask)
+    W = np.ones_like(input)
+    W[mask == 0] = 0
+    WW = gaussian_filter(W, **kwargs)
 
-        # avoid division by zero
-        WW[np.invert(mask.astype(bool))] = 1
+    # avoid division by zero
+    WW[np.invert(mask.astype(bool))] = 1
 
-        # divide the two convolutions and mask the result
-        smoothed = (VV * mask / WW)
+    # divide the two convolutions and mask the result
+    smoothed = (VV * mask / WW)
 
-        return smoothed
+    return smoothed
 
 
-def get_lncc_distance(image, mask, atlas_warped_image, spacing, config=None):
+def get_lncc_distance(
+    image: np.ndarray,
+    mask: Optional[np.ndarray],
+    atlas_warped_image: np.ndarray,
+    spacing: Sequence[float],
+    config: Optional[GifConfig] = None,
+) -> np.ndarray:
     """
     Compute the Local Normalized Cross Correlation (LNCC) distance between the input image and the atlas image.
     LNCC is defined as local covariance divided by the square root of the product of local variances.
@@ -129,23 +141,27 @@ def get_lncc_distance(image, mask, atlas_warped_image, spacing, config=None):
     return lncc_distance
 
 
-def seg_EM(input_filename,
-           output_filename,
-           mask_filename,
-           prior_filename,
-           verbose_level=0,
-           max_iterations=None,
-           min_iterations=None,
-           bias_field_order=None,
-           bias_field_thresh=None,
-           mrf_beta=None,
-           config=None):
-    """
-    Performs EM segmentation on the atlas using Niftyseg.
+def seg_EM(
+    input_filename: PathLike,
+    output_filename: PathLike,
+    mask_filename: Optional[PathLike],
+    prior_filename: PathLike,
+    verbose_level: int = 0,
+    max_iterations: Optional[int] = None,
+    min_iterations: Optional[int] = None,
+    bias_field_order: Optional[int] = None,
+    bias_field_thresh: Optional[float] = None,
+    mrf_beta: Optional[float] = None,
+    config: Optional[GifConfig] = None,
+) -> None:
+    """Run the NiftySeg ``seg_EM`` tool on the image with the given 4D tissue prior.
 
     Parameters that are ``None`` (the default) are taken from ``config`` (default:
     ``default_config()``): ``seg_em_maxit``, ``seg_em_minit``, ``seg_em_bias_order``,
     ``seg_em_bias_thresh`` and ``seg_em_mrf_beta``.
+
+    :raises ExternalToolError: if ``seg_EM`` fails
+    :raises BinaryNotFoundError: if ``seg_EM`` cannot be found
     """
     config = config or default_config()
     max_iterations = config.seg_em_maxit if max_iterations is None else max_iterations
@@ -154,19 +170,19 @@ def seg_EM(input_filename,
     bias_field_thresh = config.seg_em_bias_thresh if bias_field_thresh is None else bias_field_thresh
     mrf_beta = config.seg_em_mrf_beta if mrf_beta is None else mrf_beta
 
-    command = [config.binary('seg_EM'),
-               '-in', input_filename,
-               '-out', output_filename,
-               '-priors4D', prior_filename,
-               '-v', str(verbose_level),
-               '-max_iter', str(max_iterations),
-               '-min_iter', str(min_iterations),
-               '-bc_order', str(bias_field_order),
-               '-bc_thresh', str(bias_field_thresh),
-               '-mrf_beta', str(mrf_beta)]
-
+    command = [
+        config.binary("seg_EM"),
+        "-in", input_filename,
+        "-out", output_filename,
+        "-priors4D", prior_filename,
+        "-v", verbose_level,
+        "-max_iter", max_iterations,
+        "-min_iter", min_iterations,
+        "-bc_order", bias_field_order,
+        "-bc_thresh", bias_field_thresh,
+        "-mrf_beta", mrf_beta,
+    ]  # fmt: skip
     if mask_filename:
-        command.extend(['-mask', mask_filename])
+        command += ["-mask", mask_filename]
 
-    # Run the command
-    subprocess.call(command)
+    run_tool(command)

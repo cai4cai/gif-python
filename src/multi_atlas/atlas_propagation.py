@@ -1,144 +1,159 @@
-import os
-from src.utils.config import default_config
+"""Registration of an atlas to the target image and propagation of the atlas segmentation."""
+
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+from typing import Optional, Tuple, Union
+
+from src.utils.config import GifConfig, default_config
+from src.utils.process import run_tool
+
+logger = logging.getLogger(__name__)
+
+PathLike = Union[str, Path]
 
 
-def register_atlas_to_img(img_path,
-                          mask_path,
-                          atlas_img_path,
-                          atlas_mask_path,
-                          affine_path,
-                          affine_warped_atlas_img_path,
-                          cpp_path,
-                          warped_atlas_img_path,
-                          config=None,
-                          ):
-    """
-    Affine registration + non-linear registration with stationary velocity fields
-    are performed to register the atlas to the image.
+def register_atlas_to_img(
+    img_path: PathLike,
+    mask_path: Optional[PathLike],
+    atlas_img_path: PathLike,
+    atlas_mask_path: Optional[PathLike],
+    affine_path: PathLike,
+    affine_warped_atlas_img_path: PathLike,
+    cpp_path: PathLike,
+    warped_atlas_img_path: PathLike,
+    config: Optional[GifConfig] = None,
+) -> Tuple[PathLike, PathLike]:
+    """Register an atlas image to the target image (affine ``reg_aladin``, then ``reg_f3d``).
+
+    :param img_path: target image (reference)
+    :param mask_path: mask of the target image, or ``None``
+    :param atlas_img_path: atlas image (floating)
+    :param atlas_mask_path: mask of the atlas image, or ``None``
+    :param affine_path: where to write the affine transformation
+    :param affine_warped_atlas_img_path: where to write the affinely resampled atlas image
+    :param cpp_path: where to write the control point grid of the non-linear transformation
+    :param warped_atlas_img_path: where to write the non-linearly resampled atlas image
+    :param config: pipeline parameters (default: ``default_config()``)
+    :return: ``(affine_path, cpp_path)``
+    :raises ExternalToolError: if a NiftyReg tool fails
     """
     config = config or default_config()
-    OMP = config.omp
-
-    print(f"Use {OMP} subprocesses in each pool")
+    logger.info("Use %s OpenMP threads in each NiftyReg process", config.omp)
 
     # Affine registration
-    affine_reg_cmd = (
-        f'{config.binary("reg_aladin")} '
-        f'-ref "{img_path}" '
-        f'-flo "{atlas_img_path}" '
-        f'-res "{affine_warped_atlas_img_path}" '
-        f'-aff "{affine_path}" '
-        f'-omp {OMP} '
-        f'-lp {config.reg_aladin_lp} '
-        f'-voff '
-    )
-
+    affine_reg_cmd = [
+        config.binary("reg_aladin"),
+        "-ref", img_path,
+        "-flo", atlas_img_path,
+        "-res", affine_warped_atlas_img_path,
+        "-aff", affine_path,
+        "-omp", config.omp,
+        "-lp", config.reg_aladin_lp,
+        "-voff",
+    ]  # fmt: skip
     # masks are optional
     if mask_path:
-        affine_reg_cmd += f'-rmask "{mask_path}" '
+        affine_reg_cmd += ["-rmask", mask_path]
     if atlas_mask_path:
-        affine_reg_cmd += f'-fmask "{atlas_mask_path}" '
-
-    print('Affine registration command:')
-    os.system(affine_reg_cmd)
-
+        affine_reg_cmd += ["-fmask", atlas_mask_path]
+    logger.info("Affine registration of %s", Path(atlas_img_path).name)
+    run_tool(affine_reg_cmd)
 
     # Non-linear registration
-
-    reg_options = (
-        f'-jl {config.reg_f3d_jl} '  # Weight of log of the Jacobian determinant penalty term
-        f'-be {config.reg_f3d_be} '  # Weight of the bending energy (second derivative of the transformation) penalty term
-        f'-maxit {config.reg_f3d_maxit} '  # Maximum number of iterations
-        f'-ln {config.reg_f3d_ln} '  # Number of levels
-        f'-lp {config.reg_f3d_lp} '  # Only perform the first levels [ln]
-        f'-sx {config.reg_f3d_grid_spacing} '  # Final grid spacing in the x direction, adopted in y and z directions if not specified
-        f'--lncc {config.reg_f3d_lncc} '  # Standard deviation of the Gaussian kernel.
-        f'--interp {config.reg_f3d_interp} '  # Interpolation order (0=NN, 1=linear, 3=cubic)
-    )
-    reg_cmd = (
-        f'{config.binary("reg_f3d")} '
-        f'-ref "{img_path}" '
-        f'-flo "{atlas_img_path}" '
-        f'-aff "{affine_path}" '
-        f'{reg_options} '
-        f'-omp {OMP} '
-        f'-res "{warped_atlas_img_path}" '  # Filename of the resampled image
-        f'-cpp "{cpp_path}" '  # Filename of control point grid [outputCPP.nii]
-        f'-voff '
-    )
-
-    # masks are optional
+    reg_cmd = [
+        config.binary("reg_f3d"),
+        "-ref", img_path,
+        "-flo", atlas_img_path,
+        "-aff", affine_path,
+        "-jl", config.reg_f3d_jl,  # weight of the log of the Jacobian determinant penalty term
+        "-be", config.reg_f3d_be,  # weight of the bending energy penalty term
+        "-maxit", config.reg_f3d_maxit,  # maximum number of iterations
+        "-ln", config.reg_f3d_ln,  # number of levels
+        "-lp", config.reg_f3d_lp,  # only perform the first levels [ln]
+        "-sx", config.reg_f3d_grid_spacing,  # final grid spacing (adopted for y and z)
+        "--lncc", config.reg_f3d_lncc,  # standard deviation of the LNCC Gaussian kernel
+        "--interp", config.reg_f3d_interp,  # interpolation order (0=NN, 1=linear, 3=cubic)
+        "-omp", config.omp,
+        "-res", warped_atlas_img_path,
+        "-cpp", cpp_path,  # control point grid
+        "-voff",
+    ]  # fmt: skip
     if mask_path:
-        reg_cmd += f'-rmask "{mask_path}" '
+        reg_cmd += ["-rmask", mask_path]
     if atlas_mask_path:
-        reg_cmd += f'-fmask "{atlas_mask_path}" '
-
-    print('Non linear registration command:')
-    print(reg_cmd)
-    os.system(reg_cmd)
+        reg_cmd += ["-fmask", atlas_mask_path]
+    logger.info("Non-linear registration of %s", Path(atlas_img_path).name)
+    run_tool(reg_cmd)
 
     return affine_path, cpp_path
 
 
 def propagate_atlas_seg(
-                      atlas_seg_path,
-                      img_path,
-                      cpp_path,
-                      warped_atlas_seg_path,
-                      config=None,
-                      ):
-    config = config or default_config()
-    OMP = config.omp
+    atlas_seg_path: PathLike,
+    img_path: PathLike,
+    cpp_path: PathLike,
+    warped_atlas_seg_path: PathLike,
+    config: Optional[GifConfig] = None,
+) -> PathLike:
+    """Resample an atlas segmentation into the target space with the non-linear transformation.
 
-    if config.resample_method == 0:
-
-        # Warp the atlas seg using reg_resample and save the warped file
-        reg_resample_cmd = (
-            f'{config.binary("reg_resample")} '
-            f'-ref "{img_path}" '
-            f'-flo "{atlas_seg_path}" '
-            f'-trans "{cpp_path}" '
-            f'-res "{warped_atlas_seg_path}" '
-            f'-inter 0 '
-            f'-omp {OMP} '
-            f'-voff '
-        )
-
-        if os.system(reg_resample_cmd):
-            print(f'Error in reg_resample! The command was:\n{reg_resample_cmd}')
-            exit(1)
-
-        return warped_atlas_seg_path
-
-
-def get_linearly_interpolated_warped_atlas_img(img_path, atlas_img_path, cpp_path, lin_interp_warped_atlas_img_path,
-                                               config=None):
+    :return: ``warped_atlas_seg_path``
+    :raises NotImplementedError: for ``config.resample_method != 0`` (only nearest-neighbour
+        resampling of the label map is implemented)
+    :raises ExternalToolError: if ``reg_resample`` fails
     """
-    Apply the registration to the atlas image again using reg_resample with linear interpolation
-    The linear interpolation preserves the edges of the masked images better than cubic spline interpolation
-    This is done to avoid edge artifacts in the LNCC distance calculation
+    config = config or default_config()
+    if config.resample_method != 0:
+        raise NotImplementedError(
+            f"resample_method={config.resample_method} is not implemented; only 0 (nearest neighbour) is supported"
+        )
+    run_tool(
+        [
+            config.binary("reg_resample"),
+            "-ref", img_path,
+            "-flo", atlas_seg_path,
+            "-trans", cpp_path,
+            "-res", warped_atlas_seg_path,
+            "-inter", 0,
+            "-omp", config.omp,
+            "-voff",
+        ]  # fmt: skip
+    )
+    return warped_atlas_seg_path
+
+
+def get_linearly_interpolated_warped_atlas_img(
+    img_path: PathLike,
+    atlas_img_path: PathLike,
+    cpp_path: PathLike,
+    lin_interp_warped_atlas_img_path: PathLike,
+    config: Optional[GifConfig] = None,
+) -> PathLike:
+    """Apply the registration to the atlas image again, with linear interpolation.
+
+    The linear interpolation preserves the edges of masked images better than cubic spline
+    interpolation, which avoids edge artifacts in the LNCC distance calculation.
 
     :param img_path: path to the target image
     :param atlas_img_path: path to the atlas image
-    :param cpp_path: path to the cpp file
-    :param lin_interp_warped_atlas_img_path: path to the linearly interpolated warped atlas image
-    :param config: GifConfig (default: ``default_config()``)
-
+    :param cpp_path: path to the control point grid
+    :param lin_interp_warped_atlas_img_path: where to write the result
+    :param config: pipeline parameters (default: ``default_config()``)
+    :return: ``lin_interp_warped_atlas_img_path``
+    :raises ExternalToolError: if ``reg_resample`` fails
     """
     config = config or default_config()
-    reg_resample_cmd = (
-        f'{config.binary("reg_resample")} '
-        f'-ref "{img_path}" '
-        f'-flo "{atlas_img_path}" '
-        f'-trans "{cpp_path}" '
-        f'-inter 1 '
-        f'-res "{lin_interp_warped_atlas_img_path}" '
-        f'-voff '
-
+    run_tool(
+        [
+            config.binary("reg_resample"),
+            "-ref", img_path,
+            "-flo", atlas_img_path,
+            "-trans", cpp_path,
+            "-inter", 1,
+            "-res", lin_interp_warped_atlas_img_path,
+            "-voff",
+        ]  # fmt: skip
     )
-
-    if os.system(reg_resample_cmd):
-        print(f'Error in reg_resample! The command was:\n{reg_resample_cmd}')
-        exit(1)
-
     return lin_interp_warped_atlas_img_path
