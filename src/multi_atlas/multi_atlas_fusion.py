@@ -101,7 +101,7 @@ def get_structure_seg_from_tissue_seg(tiss_seg, lab_probs, labels_array, assigne
     """
     # loop over all voxels and check if the highest label maps to the correct tissue
     # according to assigned_tissues_dict and tiss_seg
-    structure_seg = np.ones_like(tiss_seg)*-1
+    structure_seg = np.full(tiss_seg.shape, -1, dtype=np.int32)
     range_x = range(tiss_seg.shape[0])
     range_y = range(tiss_seg.shape[1])
     range_z = range(tiss_seg.shape[2])
