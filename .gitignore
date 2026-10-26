@@ -1,10 +1,31 @@
+# editors
 .idea
-*__pycache__
-*.pyc
+.vscode
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+htmlcov/
+.numba_cache/
+
+# data and results (never commit them)
+data/
+outputs/
+logs/
+*.nii
+*.nii.gz
 *.png
 *.pdf
-data
-.venv
-outputs
-.hypothesis
-.vscode
+
+# notebook checkpoints
+.ipynb_checkpoints/

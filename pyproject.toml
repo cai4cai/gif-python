@@ -63,3 +63,33 @@ addopts = "-ra"
 markers = [
     "integration: needs the NiftyReg and NiftySeg executables (skipped automatically when they are not installed)",
 ]
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+extend-exclude = ["notebooks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "C4", "SIM", "RUF100"]
+ignore = [
+    "B905",  # zip() without strict=: needs Python 3.10
+    "SIM108", # ternary operator
+    "E741",  # ambiguous variable names are common in the numerical code
+    # typing.Optional/List/... stay: GifConfig field types are evaluated at run time (typing.get_type_hints),
+    # which does not work with `X | None` on Python 3.9
+    "UP006",
+    "UP007",
+    "UP035",
+    "UP045",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# batch scripts and examples run code at import time on purpose
+"scripts/**" = ["E402", "E501", "SIM", "B", "C4"]
+"examples/**" = ["E402", "E501", "SIM"]
+"tests/**" = ["B011", "B017", "E501"]
+"tests/regression/*" = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+skip-magic-trailing-comma = false
