@@ -6,7 +6,8 @@ import numpy as np
 from src.multi_atlas.atlas_propagation import register_atlas_to_img, propagate_atlas_seg, get_linearly_interpolated_warped_atlas_img
 from src.multi_atlas.utils import get_lncc_distance
 
-from src.utils.definitions import USE_OLD_RESULTS, WEIGHTS_TEMPERATURE, NIFTYREG_PATH
+from src.utils.config import default_config
+from src.utils.nifti import relax_quaternion_check
 
 
 def warp_atlas_and_calc_similarity_weights(img_path,
@@ -16,6 +17,7 @@ def warp_atlas_and_calc_similarity_weights(img_path,
                                            atlas_seg_path,
                                            atlas_mask_path,
                                            save_dir,
+                                           config=None,
                                            ):
     """
     Register the atlas image to the target image, then resample in the target image space, then use same transform
@@ -29,7 +31,10 @@ def warp_atlas_and_calc_similarity_weights(img_path,
     :param atlas_seg_path: path to the atlas segmentation
     :param atlas_mask_path: path to the atlas mask, can be None
     :param save_dir: path to the directory where to save the results
+    :param config: GifConfig (default: ``default_config()``)
     """
+    config = config or default_config()
+    relax_quaternion_check()
 
     save_dir_atlas = os.path.join(save_dir, "registered_atlases", atlas_name)
 
@@ -61,7 +66,7 @@ def warp_atlas_and_calc_similarity_weights(img_path,
     # Compute the warped atlas (image and segmentation)
 
     # check if the registration files already exist
-    if USE_OLD_RESULTS and all([os.path.exists(f) for f in [cpp_path, warped_atlas_img_path, warped_atlas_seg_path]]):
+    if config.use_old_results and all([os.path.exists(f) for f in [cpp_path, warped_atlas_img_path, warped_atlas_seg_path]]):
         print("Found registration files... Skip registration...")
 
     else:
@@ -80,6 +85,7 @@ def warp_atlas_and_calc_similarity_weights(img_path,
                                                                     affine_warped_atlas_img_path=affine_warped_atlas_img_path,
                                                                     cpp_path=cpp_path,
                                                                     warped_atlas_img_path=warped_atlas_img_path,
+                                                                    config=config,
                                                                 )
 
         # Transform and resample the atlas segmentation in the image space
@@ -88,6 +94,7 @@ def warp_atlas_and_calc_similarity_weights(img_path,
                                                     img_path=img_path,
                                                     cpp_path=cpp_params_path,
                                                     warped_atlas_seg_path=warped_atlas_seg_path,
+                                                    config=config,
                                                 )
 
         print(f"Registration and resampling of {atlas_name} completed after {time.time() - time_0_reg:.3f} seconds")
@@ -95,7 +102,7 @@ def warp_atlas_and_calc_similarity_weights(img_path,
     # Compute the LNCC distance based weights for the GIF-like fusion
     # check if the weights already exists
 
-    if USE_OLD_RESULTS and os.path.exists(weights_path):
+    if config.use_old_results and os.path.exists(weights_path):
         print("Found weights file... Skip LNCC distance calculation...")
     else:
         time_0_heat = time.time()
@@ -106,7 +113,7 @@ def warp_atlas_and_calc_similarity_weights(img_path,
         # the linear interpolation preserves the edges of the masked images better than cubic spline interpolation
         # apply the registration to the atlas image again using reg_resample with linear interpolation
 
-        lin_interp_warped_atlas_img_path = get_linearly_interpolated_warped_atlas_img(img_path, atlas_img_path, cpp_path, lin_interp_warped_atlas_img_path)
+        lin_interp_warped_atlas_img_path = get_linearly_interpolated_warped_atlas_img(img_path, atlas_img_path, cpp_path, lin_interp_warped_atlas_img_path, config=config)
 
         warped_atlas_linear_interp_nii = nib.load(lin_interp_warped_atlas_img_path)
         warped_atlas_linear_interp = warped_atlas_linear_interp_nii.get_fdata(dtype=np.float32)
@@ -117,6 +124,7 @@ def warp_atlas_and_calc_similarity_weights(img_path,
             mask=None if not mask_path else nib.load(mask_path).get_fdata(dtype=np.float16).astype(np.uint16),
             atlas_warped_image=warped_atlas_linear_interp,
             spacing=warped_atlas_nii.header.get_zooms()[0:3],
+            config=config,
         )
 
         # # save the lncc distance
@@ -124,7 +132,7 @@ def warp_atlas_and_calc_similarity_weights(img_path,
         # nib.save(lncc_distance_nii, lncc_distance_path)
 
         # calculate weights
-        weights = np.exp(-lncc_distance / WEIGHTS_TEMPERATURE)
+        weights = np.exp(-lncc_distance / config.weights_temperature)
 
         # save the weights
         weights_nii = nib.Nifti1Image(weights, warped_atlas_nii.affine)

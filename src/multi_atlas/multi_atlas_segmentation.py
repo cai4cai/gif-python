@@ -10,12 +10,8 @@ from src.multi_atlas.atlas_registration_and_resampling import warp_atlas_and_cal
 from src.multi_atlas.multi_atlas_fusion import get_multi_atlas_proba_seg, get_multi_atlas_tissue_prior, get_structure_seg_from_tissue_seg
 from src.multi_atlas.utils import seg_EM, nibabel_load_and_get_fdata
 
-from src.utils.definitions import MULTIPROCESSING, NUM_POOLS
-
-if MULTIPROCESSING:
-    from multiprocessing import Pool
-
-nib.Nifti1Header.quaternion_threshold = -np.finfo(np.float32).eps * 10  # CANDI dataset doesn't pass this check
+from src.utils.config import default_config
+from src.utils.nifti import relax_quaternion_check
 
 
 def multi_atlas_segmentation(img_path,
@@ -24,6 +20,7 @@ def multi_atlas_segmentation(img_path,
                              structure_info_csv_path,
                              tissue_info_csv_path,
                              save_dir,
+                             config=None,
                              ):
 
     """
@@ -39,7 +36,12 @@ def multi_atlas_segmentation(img_path,
     :param tissue_info_csv_path: Path to the tissue info csv file that contains the tissue class number, and the tissue
         name, e.g.: 3, White Matter
     :param save_dir: Path to the directory where the results will be saved
+    :param config: GifConfig with the parameters of the pipeline (default: ``default_config()``)
     """
+    from multiprocessing import Pool  # imported here: nothing is imported or started at module import
+
+    config = config or default_config()
+    relax_quaternion_check()
 
     print("Multi-atlas segmentation using the GIF-like fusion method...")
     ####################################################################################################################
@@ -156,12 +158,12 @@ def multi_atlas_segmentation(img_path,
     else:
         img_mask = None
 
-    param_tuples = [(img_path, mask_path, atls["name"], atls["img_path"], atls["seg_path"], atls["mask_path"], save_dir)
+    param_tuples = [(img_path, mask_path, atls["name"], atls["img_path"], atls["seg_path"], atls["mask_path"], save_dir, config)
                     for atls in atlas_paths_dicts_list]
 
-    if MULTIPROCESSING:
-        with Pool(NUM_POOLS) as p:
-            print(f"Start multiprocessing with {NUM_POOLS} pools...")
+    if config.multiprocessing:
+        with Pool(config.num_pools) as p:
+            print(f"Start multiprocessing with {config.num_pools} pools...")
             out = p.starmap(warp_atlas_and_calc_similarity_weights, param_tuples)
     else:
         out = []
@@ -185,8 +187,8 @@ def multi_atlas_segmentation(img_path,
     print("Load weights from disk...")
     t_0_weight = time.time()
 
-    if MULTIPROCESSING:
-        with Pool(NUM_POOLS) as p:
+    if config.multiprocessing:
+        with Pool(config.num_pools) as p:
             weights_list = p.map(nibabel_load_and_get_fdata, weights_path_list)  # n_atlas * [H, W, D]
     else:
         weights_list = []
@@ -210,9 +212,13 @@ def multi_atlas_segmentation(img_path,
     ####################################################################################################################
     print(f"Load the warped atlas segmentations from disk ...")
     t_0_load_warped_atlases = time.time()
-    with Pool(NUM_POOLS) as p:
-        warped_atlases = np.array(p.starmap(nibabel_load_and_get_fdata, [(warped_atlas_path_list[a], np.uint16) for a in
-                                            range(num_atlases)]))  # num_atlases x H x W x D
+    warped_atlas_load_args = [(warped_atlas_path_list[a], np.uint16) for a in range(num_atlases)]
+    if config.multiprocessing:
+        with Pool(config.num_pools) as p:
+            warped_atlases = np.array(p.starmap(nibabel_load_and_get_fdata, warped_atlas_load_args))
+    else:
+        warped_atlases = np.array([nibabel_load_and_get_fdata(*args) for args in warped_atlas_load_args])
+    # (num_atlases x H x W x D)
 
     print(f"Warped atlas segmentations loading completed after {time.time() - t_0_load_warped_atlases:.3f} seconds")
 
@@ -272,7 +278,7 @@ def multi_atlas_segmentation(img_path,
                      }
 
     # run seg_EM algorithm
-    seg_EM(**seg_EM_params)
+    seg_EM(**seg_EM_params, config=config)
 
     # load the result
     print(f"Loading seg_EM result...")

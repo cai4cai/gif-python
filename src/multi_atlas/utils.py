@@ -6,8 +6,8 @@ import nibabel as nib
 
 from scipy.ndimage import gaussian_filter
 
-from src.utils.definitions import NIFTYSEG_PATH, LNCC_SIGMA, seg_EM_MAXIT, seg_EM_MINIT, seg_EM_BIAS_ORDER, \
-    seg_EM_BIAS_THRESH, seg_EM_MRF_BETA
+from src.utils.config import default_config
+from src.utils.nifti import relax_quaternion_check
 
 
 def nibabel_load_and_get_fdata(filepath, dtype=np.float32):
@@ -17,6 +17,7 @@ def nibabel_load_and_get_fdata(filepath, dtype=np.float32):
     :param dtype: dtype of the returned numpy array
     :return: numpy array of the specified dtype
     """
+    relax_quaternion_check()
     if dtype == np.uint16:
         return nib.load(filepath).get_fdata(dtype=np.float16).astype(dtype)
     else:
@@ -55,7 +56,7 @@ def gaussian_smooth_with_mask(input, mask, **kwargs):
         return smoothed
 
 
-def get_lncc_distance(image, mask, atlas_warped_image, spacing):
+def get_lncc_distance(image, mask, atlas_warped_image, spacing, config=None):
     """
     Compute the Local Normalized Cross Correlation (LNCC) distance between the input image and the atlas image.
     LNCC is defined as local covariance divided by the square root of the product of local variances.
@@ -72,8 +73,10 @@ def get_lncc_distance(image, mask, atlas_warped_image, spacing):
     :param mask: mask of the input image
     :param atlas_warped_image: atlas image warped to the input image space
     :param spacing: spacing of the input image
+    :param config: GifConfig (default: ``default_config()``); ``lncc_sigma`` defines the kernel
     :return: LNCC distance
     """
+    config = config or default_config()
 
     # if there is a singleton dimension in the channel axis, remove it
     if image.ndim == 4 and image.shape[3] == 1:
@@ -83,7 +86,7 @@ def get_lncc_distance(image, mask, atlas_warped_image, spacing):
         mask = np.ones_like(image)
 
     # Gaussian kernel standard deviation in mm (if > 0) or in voxels (if < 0)
-    kernel_std = LNCC_SIGMA
+    kernel_std = config.lncc_sigma
     # convert kernel standard deviation from mm to voxels
     kernel_std = np.array([abs(k/s) if k < 0 else k for k, s in zip(kernel_std, spacing)])
 
@@ -131,16 +134,27 @@ def seg_EM(input_filename,
            mask_filename,
            prior_filename,
            verbose_level=0,
-           max_iterations=seg_EM_MAXIT,
-           min_iterations=seg_EM_MINIT,
-           bias_field_order=seg_EM_BIAS_ORDER,
-           bias_field_thresh=seg_EM_BIAS_THRESH,
-           mrf_beta=seg_EM_MRF_BETA):
+           max_iterations=None,
+           min_iterations=None,
+           bias_field_order=None,
+           bias_field_thresh=None,
+           mrf_beta=None,
+           config=None):
     """
     Performs EM segmentation on the atlas using Niftyseg.
-    """
 
-    command = [os.path.join(NIFTYSEG_PATH, 'seg_EM'),
+    Parameters that are ``None`` (the default) are taken from ``config`` (default:
+    ``default_config()``): ``seg_em_maxit``, ``seg_em_minit``, ``seg_em_bias_order``,
+    ``seg_em_bias_thresh`` and ``seg_em_mrf_beta``.
+    """
+    config = config or default_config()
+    max_iterations = config.seg_em_maxit if max_iterations is None else max_iterations
+    min_iterations = config.seg_em_minit if min_iterations is None else min_iterations
+    bias_field_order = config.seg_em_bias_order if bias_field_order is None else bias_field_order
+    bias_field_thresh = config.seg_em_bias_thresh if bias_field_thresh is None else bias_field_thresh
+    mrf_beta = config.seg_em_mrf_beta if mrf_beta is None else mrf_beta
+
+    command = [config.binary('seg_EM'),
                '-in', input_filename,
                '-out', output_filename,
                '-priors4D', prior_filename,
