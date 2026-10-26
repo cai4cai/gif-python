@@ -1,16 +1,23 @@
 """
 Run GIF multi-atlas segmentation for Mindboggle42 using Mindboggle59 atlases.
+
+Run from the repository root (or after ``pip install -e .``)::
+
+    python scripts/mindboggle42/run_mb42_with_mb59_atlases.py --atlas-root data/atlases/Mindboggle101 [--limit 2]
+
+The atlas root must contain the subject folders and the structures_info.csv / tissues_info.csv files
+(``gif-python fetch-mindboggle --clean`` creates this layout and the cleaned labels).
 """
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 from collections.abc import Iterable
 
 from src.multi_atlas.multi_atlas_segmentation import multi_atlas_segmentation
 
 
-ATLAS_ROOT = "/nfs/home/jwang/datasets/Mindboggle101/subjects"
 RESULTS_ROOT = "outputs/mb59_to_mb42_mindboggle101_gif"
 
 IMAGE_NAME = "t1weighted_brain.nii.gz"
@@ -130,7 +137,7 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run Mindboggle42 parcellation with the Mindboggle59 atlas set."
     )
-    parser.add_argument("--atlas-root", default=ATLAS_ROOT)
+    parser.add_argument("--atlas-root", required=True, help="folder with the Mindboggle-101 subjects")
     parser.add_argument("--results-root", default=RESULTS_ROOT)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--skip-existing", action="store_true")
@@ -164,7 +171,7 @@ def build_atlas_dicts(atlas_root: str) -> list[dict[str, str]]:
 
 
 def run_mb42_segmentation(
-    atlas_root: str = ATLAS_ROOT,
+    atlas_root: str,
     results_root: str = RESULTS_ROOT,
     limit: int | None = None,
     skip_existing: bool = False,
@@ -207,6 +214,7 @@ def run_mb42_segmentation(
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     args = parse_args()
     run_mb42_segmentation(
         atlas_root=args.atlas_root,

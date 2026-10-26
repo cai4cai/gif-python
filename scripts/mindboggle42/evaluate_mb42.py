@@ -2,9 +2,9 @@
 Evaluate Mindboggle42 GIF predictions with Dice.
 
 Example:
-    python run_evaluation_mb42.py \
+    python scripts/mindboggle42/evaluate_mb42.py \
         --pred-dir outputs/mb59_to_mb42_mindboggle101_gif \
-        --gt-dir /nfs/home/jwang/datasets/Mindboggle101/subjects
+        --gt-dir data/atlases/Mindboggle101
 """
 from __future__ import annotations
 
