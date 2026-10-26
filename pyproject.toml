@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pygif"
-version = "1.0.0"
+dynamic = ["version"]
 description = "Python implementation of Geodesic Information Flows (GIF) multi-atlas segmentation"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -40,9 +40,15 @@ dependencies = [
 dev = ["pytest>=7", "ruff", "pre-commit", "build"]
 viz = ["matplotlib", "seaborn"]
 
+[project.scripts]
+gif-python = "src.cli.main:entry_point"
+
 [project.urls]
 Homepage = "https://github.com/cai4cai/gif-python"
 Issues = "https://github.com/cai4cai/gif-python/issues"
+
+[tool.setuptools.dynamic]
+version = { attr = "src.__version__" }
 
 [tool.setuptools.packages.find]
 # The package layout is flat (`import src...`) and is kept as is.

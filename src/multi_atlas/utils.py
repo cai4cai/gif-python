@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Optional, Sequence, Union
 
@@ -12,6 +13,8 @@ from scipy.ndimage import gaussian_filter
 from src.utils.config import GifConfig, default_config
 from src.utils.nifti import relax_quaternion_check
 from src.utils.process import run_tool
+
+logger = logging.getLogger(__name__)
 
 PathLike = Union[str, Path]
 
@@ -186,3 +189,42 @@ def seg_EM(
         command += ["-mask", mask_filename]
 
     run_tool(command)
+
+
+def find_atlases(
+    atlas_dir: PathLike,
+    img_name: str,
+    seg_name: str,
+    mask_name: Optional[str] = None,
+    exclude: Sequence[str] = (),
+) -> list:
+    """List the atlases in the sub-folders of ``atlas_dir`` in natural order.
+
+    Every sub-folder that contains ``img_name`` and ``seg_name`` (and ``mask_name`` if given) is an
+    atlas named after the folder. The result can be passed as ``atlas_paths_dicts_list`` to
+    :func:`src.multi_atlas.multi_atlas_segmentation.multi_atlas_segmentation`.
+
+    :param exclude: names of atlases to leave out (e.g. the target itself for leave-one-out)
+    :raises FileNotFoundError: if ``atlas_dir`` does not exist or contains no atlas
+    """
+    from natsort import natsorted
+
+    atlas_dir = Path(atlas_dir)
+    if not atlas_dir.is_dir():
+        raise FileNotFoundError(f"Atlas directory does not exist: {atlas_dir}")
+    atlases = []
+    for folder in natsorted((d for d in atlas_dir.iterdir() if d.is_dir()), key=lambda d: d.name):
+        if folder.name in exclude:
+            continue
+        atlas = {"name": folder.name, "img_path": str(folder / img_name), "seg_path": str(folder / seg_name)}
+        required = [folder / img_name, folder / seg_name]
+        if mask_name:
+            atlas["mask_path"] = str(folder / mask_name)
+            required.append(folder / mask_name)
+        if all(path.is_file() for path in required):
+            atlases.append(atlas)
+        else:
+            logger.warning("Skipping %s: it does not contain %s", folder, ", ".join(p.name for p in required))
+    if not atlases:
+        raise FileNotFoundError(f"No atlas with {img_name} and {seg_name} found in {atlas_dir}")
+    return atlases
