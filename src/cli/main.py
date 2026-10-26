@@ -12,6 +12,7 @@ from typing import List, Optional, Sequence
 COMMANDS = {
     "segment": "src.cli.segment",
     "clean-labels": "src.cli.clean_labels",
+    "make-structure-info": "src.cli.make_structure_info",
 }
 
 
