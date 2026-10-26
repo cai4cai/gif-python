@@ -20,7 +20,7 @@ the final tissue segmentation of the target image. This is done using the seg_EM
 [NiftySeg](https://github.com/KCL-BMEIS/niftyseg) library.
 7. Create the final segmentation of the target image by assigning each voxel to the label with the highest probability
 that matches the tissue segmentation obtained in step 6 according to the input mapping between labels and tissue
-8. classes.
+classes.
 
 ## System requirements
 ### Hardware requirements
@@ -29,7 +29,7 @@ The code has been tested with the configuration:
 * Intel(R) Core(TM) i9-9880H CPU @ 2.30GHz
 
 ### Software requirements
-* Python 3.8 or higher
+* Python 3.9 or higher
 * [NiftyReg](https://github.com/KCL-BMEIS/niftyreg)
 * [NiftySeg](https://github.com/KCL-BMEIS/niftyseg)
 
@@ -40,12 +40,13 @@ The following python libraries are required:
 * scipy
 * pandas
 * numba
+* natsort, tqdm, xmltodict (used by the helper scripts)
 
-They can be installed with pip:
-```pip install numpy nibabel scipy pandas numba```
+They are installed together with the package:
+```pip install .```
 
 ## How to use
-A test script is provided here: [run_multi_atlas_segmentation_downsampled_test.py](run_multi_atlas_segmentation_downsampled_test.py)
+An example script is provided here: [run_registration_parcellation_basic.py](run_registration_parcellation_basic.py)
 
 6 arguments need to be defined:
 * ```img_path```: path to the image to be segmented

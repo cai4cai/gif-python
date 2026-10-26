@@ -13,7 +13,7 @@ This guide provides detailed instructions for installing all the required softwa
 ## Python Installation
 
 ### Requirement
-Python 3.8 or higher is required.
+Python 3.9 or higher is required.
 
 ### Check Current Python Version
 ```bash
@@ -27,7 +27,7 @@ python3 --version
 #### macOS
 Using Homebrew:
 ```bash
-brew install python@3.8
+brew install python@3.12
 ```
 
 Or download from [python.org](https://www.python.org/downloads/)
@@ -35,12 +35,12 @@ Or download from [python.org](https://www.python.org/downloads/)
 #### Linux (Ubuntu/Debian)
 ```bash
 sudo apt update
-sudo apt install python3.8 python3-pip
+sudo apt install python3.12 python3-pip
 ```
 
 #### Linux (Fedora/CentOS)
 ```bash
-sudo dnf install python38
+sudo dnf install python312
 ```
 
 #### Windows
