@@ -67,6 +67,11 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="recompute registrations and weights even if they are found in the output folder",
     )
+    cfg.add_argument(
+        "--keep-registration-files",
+        action="store_true",
+        help="keep affine, control point grid and warped atlas images in OUT/registered_atlases/<atlas>/",
+    )
     cfg.add_argument("--niftyreg-path", default=None, help="folder with reg_aladin, reg_f3d and reg_resample")
     cfg.add_argument("--niftyseg-path", default=None, help="folder with seg_EM")
 
@@ -89,6 +94,8 @@ def build_config(args: argparse.Namespace) -> GifConfig:
         changes["omp"] = args.omp
     if args.no_reuse:
         changes["use_old_results"] = False
+    if args.keep_registration_files:
+        changes["keep_registration_files"] = True
     if args.niftyreg_path:
         changes["niftyreg_path"] = args.niftyreg_path
     if args.niftyseg_path:

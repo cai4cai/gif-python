@@ -45,7 +45,9 @@ def warp_atlas_and_calc_similarity_weights(
     between the registered atlas image and the target image are computed from the LNCC distance.
 
     Results are written to ``<save_dir>/registered_atlases/<atlas_name>/``; if they are already there
-    and ``config.use_old_results`` is set, the corresponding steps are skipped.
+    and ``config.use_old_results`` is set, the corresponding steps are skipped. Besides the warped atlas
+    segmentation and the weights, the files of the registration (``affine.txt``, ``cpp.nii.gz``,
+    ``warped_atlas_img.nii.gz``, ...) are only kept with ``config.keep_registration_files``.
 
     :param img_path: path to the target image
     :param mask_path: path to the target mask, can be None
@@ -131,8 +133,9 @@ def warp_atlas_and_calc_similarity_weights(
         logger.info("Weights calculation for %s completed after %.3f seconds", atlas_name, time.time() - time_0_heat)
 
     # Remove temporary files
-    for entry in save_dir_atlas.iterdir():
-        if entry.is_file() and entry.name not in _KEEP_NAMES and not entry.name.startswith(_KEEP_PREFIXES):
-            entry.unlink()
+    if not config.keep_registration_files:
+        for entry in save_dir_atlas.iterdir():
+            if entry.is_file() and entry.name not in _KEEP_NAMES and not entry.name.startswith(_KEEP_PREFIXES):
+                entry.unlink()
 
     return str(warped_atlas_seg_path), str(weights_path)

@@ -38,6 +38,15 @@ def run_tool(args: Sequence[Union[str, Path]]) -> subprocess.CompletedProcess:
             f"Command: {' '.join(cmd)}\n"
             f"Last output:\n{tail}"
         ) from exc
+    tool = Path(cmd[0]).name
     if result.stdout and result.stdout.strip():
-        logger.debug("%s output:\n%s", Path(cmd[0]).name, result.stdout.rstrip())
+        logger.debug("%s output:\n%s", tool, result.stdout.rstrip())
+        n_warnings = sum(1 for line in result.stdout.splitlines() if "WARNING" in line)
+        if n_warnings:
+            logger.info(
+                "%s finished successfully and printed %d warning line(s) (for example 'The folding correction scheme "
+                "failed'); these are informational, see docs/tuning-registration.md. Use -vv (or DEBUG logging) to see them.",
+                tool,
+                n_warnings,
+            )
     return result

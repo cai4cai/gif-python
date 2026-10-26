@@ -82,6 +82,9 @@ class GifConfig:
 
     # Re-use of intermediate results (registration, resampling, weights) found in the output folder
     use_old_results: bool = True
+    #: keep the affine, control point grid and warped atlas images in registered_atlases/<name>/ (they are
+    #: deleted after use by default), e.g. to inspect the registration quality
+    keep_registration_files: bool = False
 
     # Parallelism
     multiprocessing: bool = True  #: process several atlases in parallel

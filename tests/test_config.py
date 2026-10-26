@@ -158,3 +158,7 @@ def test_config_module_does_no_work_at_import():
     out = subprocess.run([sys.executable, "-c", code], check=True, capture_output=True, text=True).stdout.strip()
     # nibabel's own default is 1e-6 (a positive number); the workaround sets a negative threshold
     assert float(out) > 0
+
+
+def test_new_options_default_to_the_previous_behaviour():
+    assert GifConfig().keep_registration_files is False
