@@ -1,61 +1,77 @@
-import os
-import subprocess
+"""Helpers: image loading, masked smoothing, LNCC distance and the seg_EM wrapper."""
 
-import numpy as np
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+from typing import Optional, Sequence, Union
+
 import nibabel as nib
-
+import numpy as np
 from scipy.ndimage import gaussian_filter
 
-from src.utils.definitions import NIFTYSEG_PATH, LNCC_SIGMA, seg_EM_MAXIT, seg_EM_MINIT, seg_EM_BIAS_ORDER, \
-    seg_EM_BIAS_THRESH, seg_EM_MRF_BETA
+from src.utils.config import GifConfig, default_config
+from src.utils.nifti import relax_quaternion_check
+from src.utils.process import run_tool
+
+logger = logging.getLogger(__name__)
+
+PathLike = Union[str, Path]
 
 
-def nibabel_load_and_get_fdata(filepath, dtype=np.float32):
+def nibabel_load_and_get_fdata(filepath: PathLike, dtype=np.float32) -> np.ndarray:
     """
     Load a nifti file and return the data as a numpy array of the specified dtype.
     :param filepath: path to the nifti file
     :param dtype: dtype of the returned numpy array
     :return: numpy array of the specified dtype
     """
+    relax_quaternion_check()
     if dtype == np.uint16:
-        return nib.load(filepath).get_fdata(dtype=np.float16).astype(dtype)
+        return nib.load(str(filepath)).get_fdata(dtype=np.float16).astype(dtype)
     else:
-        return nib.load(filepath).get_fdata(dtype=dtype).astype(dtype)
+        return nib.load(str(filepath)).get_fdata(dtype=dtype).astype(dtype)
 
 
-def gaussian_smooth_with_mask(input, mask, **kwargs):
-        """
-        Smooth an image with a Gaussian kernel, ignoring values outside the mask.
-        In principle the kernel weight will be replaced by zero wherever it overlaps with a zero in the mask.
-        Rather than changing the kernel an equivalent approach can be used by performing two convolutions as explained
-        here: https://stackoverflow.com/a/36307291
+def gaussian_smooth_with_mask(input: np.ndarray, mask: np.ndarray, **kwargs) -> np.ndarray:
+    """
+    Smooth an image with a Gaussian kernel, ignoring values outside the mask.
+    In principle the kernel weight will be replaced by zero wherever it overlaps with a zero in the mask.
+    Rather than changing the kernel an equivalent approach can be used by performing two convolutions as explained
+    here: https://stackoverflow.com/a/36307291
 
-        :param input: input image
-        :param mask: mask of the input image
-        :param kwargs: arguments for scipy's gaussian_filter function
-        :return: smoothed image
-        """
+    :param input: input image
+    :param mask: mask of the input image
+    :param kwargs: arguments for scipy's gaussian_filter function
+    :return: smoothed image
+    """
 
-        # first convolution (with image intensities in the mask and zeros outside the mask)
-        V = input.copy()
-        V[mask == 0] = 0
-        VV = gaussian_filter(V, **kwargs)
+    # first convolution (with image intensities in the mask and zeros outside the mask)
+    V = input.copy()
+    V[mask == 0] = 0
+    VV = gaussian_filter(V, **kwargs)
 
-        # second convolution (with ones inside the mask and zeros outside the mask)
-        W = np.ones_like(input)
-        W[mask == 0] = 0
-        WW = gaussian_filter(W, **kwargs)
+    # second convolution (with ones inside the mask and zeros outside the mask)
+    W = np.ones_like(input)
+    W[mask == 0] = 0
+    WW = gaussian_filter(W, **kwargs)
 
-        # avoid division by zero
-        WW[np.invert(mask.astype(bool))] = 1
+    # avoid division by zero
+    WW[np.invert(mask.astype(bool))] = 1
 
-        # divide the two convolutions and mask the result
-        smoothed = (VV * mask / WW)
+    # divide the two convolutions and mask the result
+    smoothed = VV * mask / WW
 
-        return smoothed
+    return smoothed
 
 
-def get_lncc_distance(image, mask, atlas_warped_image, spacing):
+def get_lncc_distance(
+    image: np.ndarray,
+    mask: Optional[np.ndarray],
+    atlas_warped_image: np.ndarray,
+    spacing: Sequence[float],
+    config: Optional[GifConfig] = None,
+) -> np.ndarray:
     """
     Compute the Local Normalized Cross Correlation (LNCC) distance between the input image and the atlas image.
     LNCC is defined as local covariance divided by the square root of the product of local variances.
@@ -72,8 +88,10 @@ def get_lncc_distance(image, mask, atlas_warped_image, spacing):
     :param mask: mask of the input image
     :param atlas_warped_image: atlas image warped to the input image space
     :param spacing: spacing of the input image
+    :param config: GifConfig (default: ``default_config()``); ``lncc_sigma`` defines the kernel
     :return: LNCC distance
     """
+    config = config or default_config()
 
     # if there is a singleton dimension in the channel axis, remove it
     if image.ndim == 4 and image.shape[3] == 1:
@@ -83,12 +101,12 @@ def get_lncc_distance(image, mask, atlas_warped_image, spacing):
         mask = np.ones_like(image)
 
     # Gaussian kernel standard deviation in mm (if > 0) or in voxels (if < 0)
-    kernel_std = LNCC_SIGMA
+    kernel_std = config.lncc_sigma
     # convert kernel standard deviation from mm to voxels
-    kernel_std = np.array([abs(k/s) if k < 0 else k for k, s in zip(kernel_std, spacing)])
+    kernel_std = np.array([abs(k / s) if k < 0 else k for k, s in zip(kernel_std, spacing)])
 
     # kernel radius in voxels
-    kernel_radius = np.floor([s*3 for s in kernel_std]).astype(int)
+    kernel_radius = np.floor([s * 3 for s in kernel_std]).astype(int)
 
     # define quantities to be averaged/smoothed for the LNCC computation
     image_mean = image
@@ -101,8 +119,7 @@ def get_lncc_distance(image, mask, atlas_warped_image, spacing):
     fg_mask_combined = np.logical_and(mask, ~np.isnan(atlas_warped_image)).astype(np.float32)
 
     # smooth the images with a Gaussian kernel
-    smoothing_params = {'sigma': kernel_std,
-                        'radius': kernel_radius}
+    smoothing_params = {"sigma": kernel_std, "radius": kernel_radius}
 
     image_mean = gaussian_smooth_with_mask(image_mean, fg_mask_combined, **smoothing_params)
     image_squ = gaussian_smooth_with_mask(image_squ, fg_mask_combined, **smoothing_params)
@@ -126,33 +143,87 @@ def get_lncc_distance(image, mask, atlas_warped_image, spacing):
     return lncc_distance
 
 
-def seg_EM(input_filename,
-           output_filename,
-           mask_filename,
-           prior_filename,
-           verbose_level=0,
-           max_iterations=seg_EM_MAXIT,
-           min_iterations=seg_EM_MINIT,
-           bias_field_order=seg_EM_BIAS_ORDER,
-           bias_field_thresh=seg_EM_BIAS_THRESH,
-           mrf_beta=seg_EM_MRF_BETA):
-    """
-    Performs EM segmentation on the atlas using Niftyseg.
-    """
+def seg_EM(
+    input_filename: PathLike,
+    output_filename: PathLike,
+    mask_filename: Optional[PathLike],
+    prior_filename: PathLike,
+    verbose_level: int = 0,
+    max_iterations: Optional[int] = None,
+    min_iterations: Optional[int] = None,
+    bias_field_order: Optional[int] = None,
+    bias_field_thresh: Optional[float] = None,
+    mrf_beta: Optional[float] = None,
+    config: Optional[GifConfig] = None,
+) -> None:
+    """Run the NiftySeg ``seg_EM`` tool on the image with the given 4D tissue prior.
 
-    command = [os.path.join(NIFTYSEG_PATH, 'seg_EM'),
-               '-in', input_filename,
-               '-out', output_filename,
-               '-priors4D', prior_filename,
-               '-v', str(verbose_level),
-               '-max_iter', str(max_iterations),
-               '-min_iter', str(min_iterations),
-               '-bc_order', str(bias_field_order),
-               '-bc_thresh', str(bias_field_thresh),
-               '-mrf_beta', str(mrf_beta)]
+    Parameters that are ``None`` (the default) are taken from ``config`` (default:
+    ``default_config()``): ``seg_em_maxit``, ``seg_em_minit``, ``seg_em_bias_order``,
+    ``seg_em_bias_thresh`` and ``seg_em_mrf_beta``.
 
+    :raises ExternalToolError: if ``seg_EM`` fails
+    :raises BinaryNotFoundError: if ``seg_EM`` cannot be found
+    """
+    config = config or default_config()
+    max_iterations = config.seg_em_maxit if max_iterations is None else max_iterations
+    min_iterations = config.seg_em_minit if min_iterations is None else min_iterations
+    bias_field_order = config.seg_em_bias_order if bias_field_order is None else bias_field_order
+    bias_field_thresh = config.seg_em_bias_thresh if bias_field_thresh is None else bias_field_thresh
+    mrf_beta = config.seg_em_mrf_beta if mrf_beta is None else mrf_beta
+
+    command = [
+        config.binary("seg_EM"),
+        "-in", input_filename,
+        "-out", output_filename,
+        "-priors4D", prior_filename,
+        "-v", verbose_level,
+        "-max_iter", max_iterations,
+        "-min_iter", min_iterations,
+        "-bc_order", bias_field_order,
+        "-bc_thresh", bias_field_thresh,
+        "-mrf_beta", mrf_beta,
+    ]  # fmt: skip
     if mask_filename:
-        command.extend(['-mask', mask_filename])
+        command += ["-mask", mask_filename]
 
-    # Run the command
-    subprocess.call(command)
+    run_tool(command)
+
+
+def find_atlases(
+    atlas_dir: PathLike,
+    img_name: str,
+    seg_name: str,
+    mask_name: Optional[str] = None,
+    exclude: Sequence[str] = (),
+) -> list:
+    """List the atlases in the sub-folders of ``atlas_dir`` in natural order.
+
+    Every sub-folder that contains ``img_name`` and ``seg_name`` (and ``mask_name`` if given) is an
+    atlas named after the folder. The result can be passed as ``atlas_paths_dicts_list`` to
+    :func:`src.multi_atlas.multi_atlas_segmentation.multi_atlas_segmentation`.
+
+    :param exclude: names of atlases to leave out (e.g. the target itself for leave-one-out)
+    :raises FileNotFoundError: if ``atlas_dir`` does not exist or contains no atlas
+    """
+    from natsort import natsorted
+
+    atlas_dir = Path(atlas_dir)
+    if not atlas_dir.is_dir():
+        raise FileNotFoundError(f"Atlas directory does not exist: {atlas_dir}")
+    atlases = []
+    for folder in natsorted((d for d in atlas_dir.iterdir() if d.is_dir()), key=lambda d: d.name):
+        if folder.name in exclude:
+            continue
+        atlas = {"name": folder.name, "img_path": str(folder / img_name), "seg_path": str(folder / seg_name)}
+        required = [folder / img_name, folder / seg_name]
+        if mask_name:
+            atlas["mask_path"] = str(folder / mask_name)
+            required.append(folder / mask_name)
+        if all(path.is_file() for path in required):
+            atlases.append(atlas)
+        else:
+            logger.warning("Skipping %s: it does not contain %s", folder, ", ".join(p.name for p in required))
+    if not atlases:
+        raise FileNotFoundError(f"No atlas with {img_name} and {seg_name} found in {atlas_dir}")
+    return atlases

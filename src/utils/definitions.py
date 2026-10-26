@@ -1,52 +1,78 @@
-import os
+"""Backwards-compatible view of the configuration defaults.
 
-# PATHS
+Before the introduction of :class:`src.utils.config.GifConfig` all parameters were module-level
+globals defined here. They are still importable under their old names::
+
+    from src.utils.definitions import reg_f3d_LNCC, OMP
+
+but they are only a *read-only view of the defaults* of ``GifConfig`` (computed on first access,
+nothing happens at import time). New code should create a ``GifConfig`` and pass it as the
+``config`` argument of the pipeline functions.
+
+For old scripts that assign to these names before calling the pipeline (``definitions.OMP = 4``),
+the assigned value is picked up by :func:`src.utils.config.default_config`, i.e. by every call
+that is made without an explicit ``config``.
+"""
+
+from __future__ import annotations
+
+import os
+from typing import Any, Dict
+
+# legacy name -> GifConfig field
+_LEGACY_TO_FIELD = {
+    "reg_aladin_LP": "reg_aladin_lp",
+    "reg_f3d_JL": "reg_f3d_jl",
+    "reg_f3d_BE": "reg_f3d_be",
+    "reg_f3d_MAXIT": "reg_f3d_maxit",
+    "reg_f3d_LN": "reg_f3d_ln",
+    "reg_f3d_LP": "reg_f3d_lp",
+    "reg_f3d_GRID_SPACING": "reg_f3d_grid_spacing",
+    "reg_f3d_LNCC": "reg_f3d_lncc",
+    "reg_f3d_INTERP": "reg_f3d_interp",
+    "RESAMPLE_METHOD": "resample_method",
+    "SIGMA": "sigma",
+    "LNCC_SIGMA": "lncc_sigma",
+    "WEIGHTS_TEMPERATURE": "weights_temperature",
+    "seg_EM_MAXIT": "seg_em_maxit",
+    "seg_EM_MINIT": "seg_em_minit",
+    "seg_EM_BIAS_ORDER": "seg_em_bias_order",
+    "seg_EM_BIAS_THRESH": "seg_em_bias_thresh",
+    "seg_EM_MRF_BETA": "seg_em_mrf_beta",
+    "USE_OLD_RESULTS": "use_old_results",
+    "MULTIPROCESSING": "multiprocessing",
+    "NUM_POOLS": "num_pools",
+    "OMP": "omp",
+    "NIFTYREG_PATH": "niftyreg_path",
+    "NIFTYSEG_PATH": "niftyseg_path",
+}
+
+__all__ = ["ROOT_DIR", *_LEGACY_TO_FIELD]
+
+#: Root of the source checkout (kept for old scripts; meaningless for an installed package).
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# LINEAR REGISTRATION HYPER-PARAMETERS
-reg_aladin_LP = 2  # Number of levels to use to run the registration once the pyramids have been created.
 
-# NONLINEAR REGISTRATION HYPER-PARAMETERS
-reg_f3d_JL = 0.0001  # Weight of log of the Jacobian determinant penalty term
-reg_f3d_BE = 0.005  # Weight of the bending energy (second derivative of the transformation) penalty term
-reg_f3d_MAXIT = 250  # Maximal number of iteration at the final level
-reg_f3d_LN = 4  # Number of level to perform
-reg_f3d_LP = 3  # default 3; we do only the lp first level of the pyramid
-reg_f3d_GRID_SPACING = -5.0  # Final grid spacing along the x, y, z axes in mm (in voxel if negative value), corresponds to -sx option in reg_f3d
-reg_f3d_LNCC = 5.0  # Standard deviation of the Gaussian kernel.
-reg_f3d_INTERP = 1  # Interpolation order (0=NN, 1=linear, 3=cubic)
+def __getattr__(name: str) -> Any:
+    # Called only for names that are not (re)assigned in this module.
+    if name in _LEGACY_TO_FIELD:
+        from src.utils.config import GifConfig
 
-# RESAMPLING
-RESAMPLE_METHOD = 0  # 0: nearest neighbor interpolation on label map, 1: (smoothing and) linear interpolation on one-hot encoded labels
-
-# RESAMPLING HYPER-PARAMETERS
-SIGMA = 0  # Standard deviation of the Gaussian kernel used to smooth the label maps before resampling, only applies to RESAMPLE_METHOD = 1
-
-# Local Normalized Cross-Correlation (LNCC) DISTANCE
-LNCC_SIGMA = [-2.5, -2.5, -2.5]  # Standard deviation of the Gaussian kernel used to smooth the images in mm (if > 0) or in voxels (if < 0)
-
-# WEIGHTS CALCULATION
-WEIGHTS_TEMPERATURE = 0.15  # Temperature parameter for the conversion from LNCC distance to weights
-
-# seg_EM (Expectation-Maximization to update the tissue prior)
-seg_EM_MAXIT = 30  # Maximal number of iterations
-seg_EM_MINIT = 3  # Minimal number of iterations
-seg_EM_BIAS_ORDER = 4  # Order of the bias field
-seg_EM_BIAS_THRESH = 0.05  # Threshold to stop the bias field estimation
-seg_EM_MRF_BETA = 0.1  # Weight of the MRF prior
-
-# WHETHER To USE PREVIOUS RESULTS OF REGISTRATION, RESAMPLING, AND WEIGHTS CALCULATION
-USE_OLD_RESULTS = True
-
-# MULTIPROCESSING FOR LOOP OVER ATLASES
-MULTIPROCESSING = True
-NUM_POOLS = 2  # More pools will require more RAM, be careful not to exceed the available RAM
-
-# IN EACH OF THE ABOVE PROCESSES, HOW MANY SUBPROCESSES should reg_aladin and reg_f3d run in parallel?
-OMP = 8  # OMP*NUM_POOLS should not exceed the number of cores available
-
-# NIFTYREG AND NIFTYSEG PATHS
-NIFTYREG_PATH = "/usr/local/bin"  # should contain reg_aladin, reg_f3d, reg_resample binaries
-NIFTYSEG_PATH = "/usr/local/bin"  # should contain seg_EM binary
+        config = GifConfig()
+        if name == "NIFTYREG_PATH":
+            return config.niftyreg_dir()
+        if name == "NIFTYSEG_PATH":
+            return config.niftyseg_dir()
+        value = getattr(config, _LEGACY_TO_FIELD[name])
+        return list(value) if name == "LNCC_SIGMA" else value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
+def __dir__() -> list:
+    return sorted(set(globals()) | set(_LEGACY_TO_FIELD))
+
+
+def legacy_overrides() -> Dict[str, Any]:
+    """Values that were explicitly assigned to the legacy globals (name of GifConfig field -> value)."""
+    namespace = globals()
+    return {field: namespace[name] for name, field in _LEGACY_TO_FIELD.items() if name in namespace}

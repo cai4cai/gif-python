@@ -1,31 +1,46 @@
+import argparse
 import os
 import warnings
 from glob import glob
-from natsort import natsorted
-import pandas as pd
-import xmltodict
+
 import nibabel as nib
 import numpy as np
+import pandas as pd
+import xmltodict
+from natsort import natsorted
 
-warnings.simplefilter('always', UserWarning)
+warnings.simplefilter("always", UserWarning)
 
-nmm_ds_path = "/mnt/nas1/Datasets/NMM_BrainParc/NMM_BrainParc_clean"
+parser = argparse.ArgumentParser(description="Create structures_info.csv for the NMM atlases.")
+parser.add_argument("--nmm-dataset", required=True, help="NMM_BrainParc_clean folder (with images/, labels/, xml/)")
+parser.add_argument("--out-atlas-dir", required=True, help="output folder, e.g. data/atlases/NMM_atlases")
+parser.add_argument(
+    "--genfi-structures-info",
+    required=True,
+    help="GENFI structures_info.csv (it has the tissue assignments, which NMM does not provide)",
+)
+args = parser.parse_args()
 
-out_nmm_atlas_dir = "/home/aaron/Dropbox/KCL/Projects/gif-python/data/atlases/NMM_atlases"
+nmm_ds_path = args.nmm_dataset
+out_nmm_atlas_dir = args.out_atlas_dir
 
 # get GENFI labels, since they have the tissue assignments (not available in NMM datasets)
-df_GENFI = pd.read_csv("/home/aaron/Dropbox/KCL/Projects/gif-python/data/atlases/GENFI_atlases/structures_info.csv")
-GENFI_descs = df_GENFI['name'].values
+df_GENFI = pd.read_csv(args.genfi_structures_info)
+GENFI_descs = df_GENFI["name"].values
 
 images = [i for i in natsorted(glob(os.path.join(nmm_ds_path, "images", "*_0000.nii.gz")))]
 segmentations = [i for i in natsorted(glob(os.path.join(nmm_ds_path, "labels", "*seg.nii.gz")))]
 label_maps = [i for i in natsorted(glob(os.path.join(nmm_ds_path, "xml", "*.xml")))]
 
-assert(len(images) == len(segmentations) == len(label_maps)), (("Expected the same number of images, segmentations and "
-                                                               "label maps, found ")
-                                                               + str(len(images)) + " images, "
-                                                               + str(len(segmentations)) + " segmentations and "
-                                                               + str(len(label_maps)) + " label maps.")
+assert len(images) == len(segmentations) == len(label_maps), (
+    ("Expected the same number of images, segmentations and label maps, found ")
+    + str(len(images))
+    + " images, "
+    + str(len(segmentations))
+    + " segmentations and "
+    + str(len(label_maps))
+    + " label maps."
+)
 
 skipped_atlases = []
 nmm_label_dicts_list_with_tissues = []
@@ -49,26 +64,26 @@ for i, (img_p, seg_p, xml_p) in enumerate(zip(images, segmentations, label_maps)
     print("Found a total of ", len(labels), " labels in the segmentation.")
     print("Labels: ", labels)
 
-    with open(xml_p, "r") as f:
+    with open(xml_p) as f:
         xml_string = f.read()
 
     xml_dict = xmltodict.parse(xml_string)
-    nmm_label_dicts_list = [{"label": int(d['Number']), "name": d['Name']} for d in xml_dict['LabelList']['Label']]
-    nmm_label_dicts_list = sorted(nmm_label_dicts_list, key=lambda k: k['label'])
+    nmm_label_dicts_list = [{"label": int(d["Number"]), "name": d["Name"]} for d in xml_dict["LabelList"]["Label"]]
+    nmm_label_dicts_list = sorted(nmm_label_dicts_list, key=lambda k: k["label"])
 
     # get the tissue assignments from the GENFI dataset
     nb_matches = 0
     for nmm_d in nmm_label_dicts_list:
-        desc2 = nmm_d['name']
-        label = nmm_d['label']
+        desc2 = nmm_d["name"]
+        label = nmm_d["label"]
         for desc in GENFI_descs:
             if desc.replace(" ", "") == desc2.replace(" ", ""):
                 # print(desc)
                 nb_matches += 1
 
                 # get the tissue types from the GENFI dataset
-                tissue = df_GENFI[df_GENFI['name'] == desc]['tissues'].iloc[0]
-                nmm_d['tissues'] = tissue
+                tissue = df_GENFI[df_GENFI["name"] == desc]["tissues"].iloc[0]
+                nmm_d["tissues"] = tissue
 
                 # add the dictionary to the list if it is not already in there
                 if nmm_d not in nmm_label_dicts_list_with_tissues:
@@ -76,7 +91,9 @@ for i, (img_p, seg_p, xml_p) in enumerate(zip(images, segmentations, label_maps)
                 break
         else:
             pass
-            if label in labels:  # check that the current not-found label is actually present in the segmentation or just mentioned in the xml file
+            if (
+                label in labels
+            ):  # check that the current not-found label is actually present in the segmentation or just mentioned in the xml file
                 print("----------------------------------- Not found:", desc2, " with label ", label)
                 # assign tissue manually
                 if "Lesion" in desc2:
@@ -86,24 +103,24 @@ for i, (img_p, seg_p, xml_p) in enumerate(zip(images, segmentations, label_maps)
                     break
                 elif "Unlabeled" in desc2:
                     print("assign this label to all tissues")
-                    nmm_d['tissues'] = [0, 1, 2, 3, 4, 5]
+                    nmm_d["tissues"] = [0, 1, 2, 3, 4, 5]
                 elif "Vitamin E" in desc2:
                     print("assign this label to background")
-                    nmm_d['tissues'] = [0]
+                    nmm_d["tissues"] = [0]
                 elif "White Matter" in desc2:
                     print("assign white matter to this label")
-                    nmm_d['tissues'] = [3]
+                    nmm_d["tissues"] = [3]
                 elif "CSF" in desc2:
                     nb_matches += 1
                     print("Matched manually with 'Non-ventricular CSF' label ... assign CSF to this label")
-                    nmm_d['tissues'] = [1]
+                    nmm_d["tissues"] = [1]
                 elif "Basal Forebrain" in desc2:
                     nb_matches += 1
                     print("Matched manually with 'Basal Forebrain' label ... assign Deep Grey Matter to this label")
-                    nmm_d['tissues'] = [4]
+                    nmm_d["tissues"] = [4]
                 elif "icc" in desc2:
                     print("assign CSF to this label")
-                    nmm_d['tissues'] = [1]
+                    nmm_d["tissues"] = [1]
                 else:
                     raise ValueError("Unknown tissue type: " + desc2 + " with label " + str(label))
 
@@ -123,7 +140,7 @@ nmm_label_dicts_list_with_tissues.append({"label": 0, "name": "Background", "tis
 df = pd.DataFrame(nmm_label_dicts_list_with_tissues)
 
 # sort by label
-df = df.sort_values(by=['label'])
+df = df.sort_values(by=["label"])
 
 # save the dataframe to a csv file
 df.to_csv(os.path.join(out_nmm_atlas_dir, "structures_info.csv"), index=False)

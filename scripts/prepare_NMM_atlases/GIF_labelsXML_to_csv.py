@@ -1,6 +1,9 @@
+import argparse
 import csv
 import xml.etree.ElementTree as ET
+
 import pandas as pd
+
 
 def parse_xml_file(file_path):
     def parse_element(element):
@@ -40,31 +43,44 @@ def parse_xml_file(file_path):
     # Return the populated dictionary
     return data_dict
 
+
 def extract_tissue_info_and_structures_info(xml_dict, orig_GIF_to_consec_labels):
     tissue_dict = {}
-    for d in xml_dict['tissues']['item'][:]:
-        tissue_dict[int(d['number'])] = {'name': d['name']}
+    for d in xml_dict["tissues"]["item"][:]:
+        tissue_dict[int(d["number"])] = {"name": d["name"]}
 
     # extract structures information
     structure_dict = {}
-    for d in xml_dict['labels']['item'][:]:
-        orig_label = int(d['number'])
+    for d in xml_dict["labels"]["item"][:]:
+        orig_label = int(d["number"])
         if orig_label not in orig_GIF_to_consec_labels:
             print(f"Original GIF label {orig_label} with name {d['name']} not found in the csv file")
             continue
         consec_label = orig_GIF_to_consec_labels[orig_label]
-        structure_dict[consec_label] = {'name': d['name'], 'tissues': [int(t) for t in d['tissues'].split(',')]}
+        structure_dict[consec_label] = {"name": d["name"], "tissues": [int(t) for t in d["tissues"].split(",")]}
 
     return tissue_dict, structure_dict
 
 
-xml_path = "/home/aaron/Downloads/GIF_JorgeRepo/GIF/db_masked_debug/labels.xml"
-csv_path = "/home/aaron/Dropbox/KCL/Projects/trustworthy-ai-fetal-brain-segmentation/data/map_originalGIF_to_consecutive_labels.csv"
+parser = argparse.ArgumentParser(description="Convert a GIF labels.xml into tissues_info.csv and structures_info.csv.")
+parser.add_argument("--labels-xml", required=True, help="labels.xml of the C++ GIF database")
+parser.add_argument(
+    "--label-map-csv",
+    required=True,
+    help="csv mapping the original GIF labels to consecutive labels "
+    "(see map_originalGIF_to_consecutive_labels.csv in this folder)",
+)
+parser.add_argument("--tissues-info-out", required=True, help="output tissues_info.csv")
+parser.add_argument("--structures-info-out", required=True, help="output structures_info.csv")
+args = parser.parse_args()
+
+xml_path = args.labels_xml
+csv_path = args.label_map_csv
 
 xml_dict = parse_xml_file(xml_path)
 print(xml_dict)
 
-orig_GIF_to_consec_labels = pd.read_csv(csv_path, index_col="original GIF labels").to_dict()['consecutive labels']
+orig_GIF_to_consec_labels = pd.read_csv(csv_path, index_col="original GIF labels").to_dict()["consecutive labels"]
 print(orig_GIF_to_consec_labels)
 
 tissue_dict, structure_dict = extract_tissue_info_and_structures_info(xml_dict, orig_GIF_to_consec_labels)
@@ -74,8 +90,8 @@ print(structure_dict)
 print(len(tissue_dict))
 print(len(structure_dict))
 
-tissues_info_path = "/home/aaron/Dropbox/KCL/Projects/trustworthy-ai-fetal-brain-segmentation/data/GENFI_atlases/tissues_info.csv"
-structures_info_path = "/home/aaron/Dropbox/KCL/Projects/trustworthy-ai-fetal-brain-segmentation/data/GENFI_atlases/structures_info.csv"
+tissues_info_path = args.tissues_info_out
+structures_info_path = args.structures_info_out
 
 
 tissue_df = pd.DataFrame(tissue_dict).T

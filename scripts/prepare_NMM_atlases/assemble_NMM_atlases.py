@@ -1,22 +1,34 @@
+import argparse
 import os
-from glob import glob
-from natsort import natsorted
 import shutil
+from glob import glob
+
 import pandas as pd
+from natsort import natsorted
 
-nmm_ds_path = "/mnt/nas1/Datasets/NMM_BrainParc/NMM_BrainParc_clean"
+parser = argparse.ArgumentParser(
+    description="Copy the NMM_BrainParc images and segmentations into one folder per atlas."
+)
+parser.add_argument("--nmm-dataset", required=True, help="NMM_BrainParc_clean folder (with images/, labels/, xml/)")
+parser.add_argument("--out-atlas-dir", required=True, help="output folder, e.g. data/atlases/NMM_atlases")
+args = parser.parse_args()
 
-out_atlas_dir = "/home/aaron/Dropbox/KCL/Projects/gif-python/data/atlases/NMM_atlases"
+nmm_ds_path = args.nmm_dataset
+out_atlas_dir = args.out_atlas_dir
 
 images = [i for i in natsorted(glob(os.path.join(nmm_ds_path, "images", "*_0000.nii.gz")))]
 segmentations = [i for i in natsorted(glob(os.path.join(nmm_ds_path, "labels", "*seg.nii.gz")))]
 label_maps = [i for i in natsorted(glob(os.path.join(nmm_ds_path, "xml", "*.xml")))]
 
-assert(len(images) == len(segmentations) == len(label_maps)), (("Expected the same number of images, segmentations and "
-                                                               "label maps, found ")
-                                                               + str(len(images)) + " images, "
-                                                               + str(len(segmentations)) + " segmentations and "
-                                                               + str(len(label_maps)) + " label maps.")
+assert len(images) == len(segmentations) == len(label_maps), (
+    ("Expected the same number of images, segmentations and label maps, found ")
+    + str(len(images))
+    + " images, "
+    + str(len(segmentations))
+    + " segmentations and "
+    + str(len(label_maps))
+    + " label maps."
+)
 
 # create atlas dictionary list
 atlas_paths_dicts_list = []
@@ -38,7 +50,7 @@ for i, (img_p, seg_p, xml_p) in enumerate(zip(images, segmentations, label_maps)
 
     # copy the files to the atlas directory while and add dictionary to list
     atlas_dir = os.path.join(out_atlas_dir, atlas_name)
-    relative_atlas_dir = os.path.join(".", "data", atlas_dir.split("data"+os.sep)[1])
+    relative_atlas_dir = os.path.join(".", "data", atlas_dir.split("data" + os.sep)[1])
     os.makedirs(atlas_dir, exist_ok=True)
     new_dict = {"name": atlas_name}
 
@@ -59,9 +71,3 @@ for i, (img_p, seg_p, xml_p) in enumerate(zip(images, segmentations, label_maps)
 
 
 pd.DataFrame(atlas_paths_dicts_list).to_csv(os.path.join(out_atlas_dir, "atlas_paths.csv"), index=False)
-
-
-
-
-
-

@@ -7,13 +7,14 @@ This guide provides detailed instructions for installing all the required softwa
 - [NiftyReg Installation](#niftyreg-installation)
 - [NiftySeg Installation](#niftyseg-installation)
 - [Python Libraries](#python-libraries)
+- [Locating NiftyReg and NiftySeg](#locating-niftyreg-and-niftyseg)
 - [Data Folder Setup](#data-folder-setup)
 - [Verification](#verification)
 
 ## Python Installation
 
 ### Requirement
-Python 3.8 or higher is required.
+Python 3.9 or higher is required.
 
 ### Check Current Python Version
 ```bash
@@ -27,7 +28,7 @@ python3 --version
 #### macOS
 Using Homebrew:
 ```bash
-brew install python@3.8
+brew install python@3.12  # any version >= 3.9
 ```
 
 Or download from [python.org](https://www.python.org/downloads/)
@@ -35,12 +36,12 @@ Or download from [python.org](https://www.python.org/downloads/)
 #### Linux (Ubuntu/Debian)
 ```bash
 sudo apt update
-sudo apt install python3.8 python3-pip
+sudo apt install python3 python3-pip python3-venv   # needs to be 3.9 or newer
 ```
 
 #### Linux (Fedora/CentOS)
 ```bash
-sudo dnf install python38
+sudo dnf install python3 python3-pip
 ```
 
 #### Windows
@@ -119,85 +120,75 @@ seg_EM --version
 
 ## Python Libraries
 
-The following Python libraries are required:
-- numpy
-- nibabel
-- scipy
-- pandas
-- numba
-
-### Installation
-
-Install all required libraries at once:
-```bash
-pip install numpy nibabel scipy pandas numba
-```
-
-Or install individually:
-```bash
-pip install numpy
-pip install nibabel
-pip install scipy
-pip install pandas
-pip install numba
-```
-
-### Using a Virtual Environment (Recommended)
-
-It's recommended to use a virtual environment to avoid conflicts with other Python projects:
+The Python dependencies (numpy, scipy, nibabel, pandas, numba, natsort, tqdm, xmltodict) are declared in
+`pyproject.toml` and installed with the package:
 
 ```bash
-# Create a virtual environment
-python -m venv venv
-
-# Activate the virtual environment
-# On macOS/Linux:
-source venv/bin/activate
-# On Windows:
-venv\Scripts\activate
-
-# Install the required libraries
-pip install numpy nibabel scipy pandas numba
+python -m venv venv && source venv/bin/activate     # recommended; on Windows: venv\Scripts\activate
+pip install .                                       # or: pip install -e ".[dev]" for development
 ```
+
+Check:
+
+```bash
+gif-python --help
+python -c "import src; print(src.__version__)"
+```
+
+## Locating NiftyReg and NiftySeg
+
+`reg_aladin`, `reg_f3d`, `reg_resample` (NiftyReg) and `seg_EM` (NiftySeg) are searched in this order:
+the directory given in the configuration (`--niftyreg-path` / `--niftyseg-path`, `GifConfig(niftyreg_path=...)`),
+the directories in the environment variables `NIFTYREG_PATH` and `NIFTYSEG_PATH`, `PATH`, and `/usr/local/bin`.
+A missing executable is reported with the name and the places that were searched.
+
+```bash
+export NIFTYREG_PATH=$HOME/niftyreg/install/bin
+export NIFTYSEG_PATH=$HOME/niftyseg/install/bin
+gif-python segment --print-config | tail -2     # shows the directories that will be used
+```
+
+The refactoring of this package was checked with NiftyReg 1.5.77.
 
 ## Data Folder Setup
 
-The `data/` folder is required for running multi-atlas segmentation and is **not included** in this repository. You need to set it up with the appropriate atlas data.
-
-### Expected Data Folder Structure
+The `data/` folder is **not included** in this repository. The folder layout used in the documentation is:
 
 ```
 data/
 ├── atlases/
-│   ├── Mindboggle101/                  # Mindboggle atlases
-│   │   ├── structures_info.csv         # Label definitions
-│   │   ├── tissues_info.csv            # Tissue type definitions
-│   │   ├── OASIS-TRT-20-1/
-│   │   │   ├── t1weighted.nii.gz
-│   │   │   ├── labels.DKT31.manual+aseg.nii.gz
-│   │   │   └── labels.DKT31.manual+aseg_cleaned.nii.gz
-│   │   ├── OASIS-TRT-20-2/
-│   │   │   ├── t1weighted.nii.gz
-│   │   │   ├── labels.DKT31.manual+aseg.nii.gz
-│   │   │   └── labels.DKT31.manual+aseg_cleaned.nii.gz
-│   │   └── ...                         # (101 subjects total)
-│
-└── input/                              # Your subjects to segment (optional)
-    └── subject-01/
-        └── t1weighted_brain.nii.gz
+│   └── Mindboggle101/
+│       ├── structures_info.csv                  # label definitions
+│       ├── tissues_info.csv                     # tissue definitions
+│       ├── itksnap_label_descriptions_mindboggle101.txt
+│       ├── OASIS-TRT-20-1/
+│       │   ├── t1weighted.nii.gz
+│       │   ├── t1weighted_brain.nii.gz
+│       │   ├── labels.DKT31.manual+aseg.nii.gz
+│       │   └── labels.DKT31.manual+aseg_cleaned.nii.gz
+│       └── ...                                  # 101 subjects
+└── downloads/mindboggle101/                     # the downloaded archives
 ```
 
-### Required Files per Atlas Subject
+For Mindboggle-101 this is created by one command (about 3.3 GB, no login):
 
-Each atlas directory must contain:
-- **`t1weighted.nii.gz`**: T1-weighted MRI image
-- **`labels.DKT31.manual+aseg.nii.gz`**: Manual segmentation labels (DKT31 parcellation)
-- **`labels.DKT31.manual+aseg_cleaned.nii.gz`**: Manual segmentation labels (DKT31 parcellation) without the labels [1001, 1032, 1033, 2001, 2032, 2033] after having used clean_small_labels.py
+```bash
+gif-python fetch-mindboggle --clean
+```
 
-### Required CSV Files
+It downloads the five volume archives from Harvard Dataverse, verifies their SHA-256, extracts the files above,
+copies the csv files, and (with `--clean`) creates the `_cleaned` labels, i.e. the labels without
+[1001, 1032, 1033, 2001, 2032, 2033]. See [docs/mindboggle101.md](docs/mindboggle101.md).
 
-#### `structures_info.csv`
-Defines label IDs, names, and tissue classifications:
+### Required files per atlas
+
+Each atlas folder contains an image and a segmentation (names are options of `gif-python segment`:
+`--atlas-img`, `--atlas-seg`, optionally `--atlas-mask`).
+
+### `structures_info.csv`
+
+Defines label ids, names, and the tissue classes each structure can belong to:
+
 ```csv
 label,name,tissues
 0,Unknown,[0]
@@ -206,8 +197,10 @@ label,name,tissues
 ...
 ```
 
-#### `tissues_info.csv`
-Defines tissue type IDs and names:
+### `tissues_info.csv`
+
+Defines tissue type ids and names:
+
 ```csv
 label,name
 0,Non-Brain Outer Tissue
@@ -218,39 +211,16 @@ label,name
 5,Brain Stem and Pons
 ```
 
-### Obtaining Atlas Data
-
-The Mindboggle101 atlas data can be obtained from:
-
-1. **Synapse** (Recommended): [https://www.synapse.org/Synapse:syn3218329/files/](https://www.synapse.org/Synapse:syn3218329/files/)
-2. **Mindboggle Website**: [https://mindboggle.info/data.html](https://mindboggle.info/data.html)
-
-After downloading:
-1. Extract the atlas data
-2. Organize it according to the structure above
-3. Ensure each subject has both the T1-weighted image and labels
-4. Place the `structures_info.csv` and `tissues_info.csv` files in the atlas root directory
-
+For other atlases, `gif-python make-structure-info` generates both files from the atlas segmentations and a
+FreeSurfer colour table.
 
 ## Verification
 
-After installation, verify that all components are properly installed:
-
-### Check Python Libraries
-```python
-python -c "import numpy, nibabel, scipy, pandas, numba; print('All libraries imported successfully')"
-```
-
-### Check NiftyReg
 ```bash
-which reg_aladin
+which reg_aladin reg_f3d reg_resample seg_EM      # or check $NIFTYREG_PATH / $NIFTYSEG_PATH
 reg_aladin --version
-```
-
-### Check NiftySeg
-```bash
-which seg_EM
 seg_EM --version
+pytest                                            # tests marked `integration` run when the tools are found
 ```
 
 ## Troubleshooting
@@ -262,12 +232,9 @@ pip install --upgrade pip
 ```
 
 ### Permission Issues
-If you encounter permission errors during installation, you may need to use `sudo` (Linux/macOS) or run as administrator (Windows).
-
-For pip installations without sudo, use the `--user` flag:
-```bash
-pip install --user numpy nibabel scipy pandas numba
-```
+Install into a virtual environment (see above) instead of the system Python. To install NiftyReg/NiftySeg
+without `sudo`, use `cmake -DCMAKE_INSTALL_PREFIX=$HOME/niftyreg/install ..` and set `NIFTYREG_PATH`
+(and likewise for NiftySeg).
 
 ### NiftyReg/NiftySeg Build Errors
 Ensure all build dependencies (CMake, compiler) are properly installed. Check the respective GitHub repositories for platform-specific build instructions and known issues.

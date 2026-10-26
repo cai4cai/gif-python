@@ -1,0 +1,122 @@
+# SHA-256 checksums for `gif-python fetch-mindboggle`.
+#
+# Section 1 - the five volume archives of the Mindboggle-101 data set at Harvard Dataverse
+# (doi:10.7910/DVN/HMQKCK; https://dataverse.harvard.edu/api/access/datafile/<id>). Computed on 2026-10-26
+# from a complete download of every archive; the MD5 sums of the same files match those published by Dataverse
+# for them (OASIS-TRT-20 2ef8b3fc..., NKI-TRT-20 b91e2630..., NKI-RS-22 6fc57e7e..., MMRR-21 867926c0...,
+# Extra-18 14ab5236...). These lines are in `sha256sum` format:
+#     sha256sum -c --ignore-missing checksums.sha256     (run in the folder that holds the archives)
+#
+# Section 2 - `cleaned-labels/<subject>/labels.DKT31.manual+aseg_cleaned.nii.gz`: the labels after
+# `gif-python clean-labels` with the default labels (1001 1032 1033 2001 2032 2033), for all 101 subjects.
+# The value is NOT the hash of the file: it is the SHA-256 of the data type, the shape and the voxel values
+# (C order, little endian) of the volume, so that it does not depend on the nibabel or zlib version that wrote
+# the file (see src/datasets/mindboggle.py, sha256_label_volume). `fetch-mindboggle --clean` checks it.
+#
+# Do not edit by hand; regenerate with `gif-python fetch-mindboggle --clean --write-checksums FILE`.
+89e5d9a635fb12227e3c132d33ecb15aeeaeb54a7db02ad29ecfa7085468eb9c  Extra-18_volumes.tar.gz
+73b27f5ccce27a47e6cf03b9a1adc64b191d677009340feb531793e0fa83eeb1  MMRR-21_volumes.tar.gz
+450588dcb8528b617c1472cb8119748f60481b6d40d2d10e6aafca21a8e078c4  NKI-RS-22_volumes.tar.gz
+9c6899707d51a009ea7fc670090cc060a2dc60e8426216ff6129f88814642570  NKI-TRT-20_volumes.tar.gz
+9c26c7846293a74c94270d9b1c977bd180e084690a82538f4848d960be41137b  OASIS-TRT-20_volumes.tar.gz
+0802d29f3c4a66bda1950542c1ac8308b728fe6a437b6a6e279959c2ddeec985  cleaned-labels/Afterthought-1/labels.DKT31.manual+aseg_cleaned.nii.gz
+db974607ecb20e20db6d99203fc19536e010f69273e3d875d8060ce8cc7b4cb9  cleaned-labels/Colin27-1/labels.DKT31.manual+aseg_cleaned.nii.gz
+ce759738fd8ac60319827b2c213f17d74311329ecea78732f260006bd8bf53d6  cleaned-labels/HLN-12-1/labels.DKT31.manual+aseg_cleaned.nii.gz
+7bf38b54e4c6e71e21456256b1f77c3ff4dee67354b85981d9dd07b6c773f4a0  cleaned-labels/HLN-12-10/labels.DKT31.manual+aseg_cleaned.nii.gz
+b676b391c7d52741399eb33920beb9e49e56d3dc9caca9b1f1d19bfc9217046e  cleaned-labels/HLN-12-11/labels.DKT31.manual+aseg_cleaned.nii.gz
+e1cce1d75e5aec16857fb91e189eb1ad4432a0bfad91385d74112c94de65e1b1  cleaned-labels/HLN-12-12/labels.DKT31.manual+aseg_cleaned.nii.gz
+a23f6c2cd5afbddc6399c31db7bb51682b0348398ff96983c38883c2313bb732  cleaned-labels/HLN-12-2/labels.DKT31.manual+aseg_cleaned.nii.gz
+f609cc91912a332f2471375eb33d281c338d668af6ce70bda1060a17ec7eb3f6  cleaned-labels/HLN-12-3/labels.DKT31.manual+aseg_cleaned.nii.gz
+4ad0d44dc0fdec7b2e0fcfd65eee7681adda38b29d96200904a7d02f294212fd  cleaned-labels/HLN-12-4/labels.DKT31.manual+aseg_cleaned.nii.gz
+f8cbec450243744e72eb7804ab3038cd479381e7460fb743eba02c929bc384bf  cleaned-labels/HLN-12-5/labels.DKT31.manual+aseg_cleaned.nii.gz
+1cc04dcff6bf4d4d1ed77d5824e47597f3059ba58f8a986ea8bca3532790568e  cleaned-labels/HLN-12-6/labels.DKT31.manual+aseg_cleaned.nii.gz
+92f3d7e9d4ae193abdcae263849031baad487da01d4abb6b469facf3ec569b4e  cleaned-labels/HLN-12-7/labels.DKT31.manual+aseg_cleaned.nii.gz
+579ff84270fd8367f045701363089b5d6797e5ba98d6ee805439a291d66c97a0  cleaned-labels/HLN-12-8/labels.DKT31.manual+aseg_cleaned.nii.gz
+24e7085c24a4cf2890702cc7ddc3cd5cf6885875c8d8bc28a1c8516937be0a46  cleaned-labels/HLN-12-9/labels.DKT31.manual+aseg_cleaned.nii.gz
+787f99f5cd49aaa38e8065eecb4b319d23d26a81cab500056d028a3c0a8dc084  cleaned-labels/MMRR-21-1/labels.DKT31.manual+aseg_cleaned.nii.gz
+9442a042b49cbc5857102de458d567aec867681d0c57a85ddda9b2b6c74cefea  cleaned-labels/MMRR-21-10/labels.DKT31.manual+aseg_cleaned.nii.gz
+7f4cb2d59e3e1f578bc83917c8cda8aac8ef9cbbf321fed62ae089326d4bc2db  cleaned-labels/MMRR-21-11/labels.DKT31.manual+aseg_cleaned.nii.gz
+a16471843afeadba43a3c98b7240f19dd81bfea5703575e7aeb3ab34c74638cb  cleaned-labels/MMRR-21-12/labels.DKT31.manual+aseg_cleaned.nii.gz
+df10ba4fef1fa9c0c72ea00d2eba9ae86e2c57698ee5c1078aa39c5b93eeeb6c  cleaned-labels/MMRR-21-13/labels.DKT31.manual+aseg_cleaned.nii.gz
+5ad67ce56379b5b305957a3604613dde632595fbae1d0989963fdec79291ccd7  cleaned-labels/MMRR-21-14/labels.DKT31.manual+aseg_cleaned.nii.gz
+7adf0c5094dc17299a573347ef972f0cf92e133930b309f9f84e2aad32a62084  cleaned-labels/MMRR-21-15/labels.DKT31.manual+aseg_cleaned.nii.gz
+13d020077a71cedfa0046e9fc3582668b5f243a07b444cbe42ac3255c1be1253  cleaned-labels/MMRR-21-16/labels.DKT31.manual+aseg_cleaned.nii.gz
+2ecb74cada7a60a8177fde1ee75a559c70498f191d5d4fb422f28393fc230922  cleaned-labels/MMRR-21-17/labels.DKT31.manual+aseg_cleaned.nii.gz
+d95a7d9ce948c90bea5ef78b4b22063042c524b76068bfcbd68840053577fbb5  cleaned-labels/MMRR-21-18/labels.DKT31.manual+aseg_cleaned.nii.gz
+748b1769b4c56787a35c77389574d46a979344c1665cabc312b8942248dcac89  cleaned-labels/MMRR-21-19/labels.DKT31.manual+aseg_cleaned.nii.gz
+c10109418bd357fab81d53d8338df6a2d300c2cdb149db0a0c3712b4d6dab8a6  cleaned-labels/MMRR-21-2/labels.DKT31.manual+aseg_cleaned.nii.gz
+3f5fa5875a7cf1a80f23a6055dfb825f2444e645d944f4b329bc2bdf21ca6d3d  cleaned-labels/MMRR-21-20/labels.DKT31.manual+aseg_cleaned.nii.gz
+4429840d84455c9342d683f121d8cd350d3c7d08fb24c8434f1e3d54d541adae  cleaned-labels/MMRR-21-21/labels.DKT31.manual+aseg_cleaned.nii.gz
+edea90c7ee1547467c718c5b48e5506705a4c2fe85067e1ec7c372088f70bc3b  cleaned-labels/MMRR-21-3/labels.DKT31.manual+aseg_cleaned.nii.gz
+284e89e464266f6e495ce9fd8cb3a76316c108b84b883d573578a22c5db0b268  cleaned-labels/MMRR-21-4/labels.DKT31.manual+aseg_cleaned.nii.gz
+f9b819cb2394d0e58c6f853c892678fe00fa7e79f9bf545e6f015decae05643d  cleaned-labels/MMRR-21-5/labels.DKT31.manual+aseg_cleaned.nii.gz
+d6803d1a731246671be9215131e65ef81fa70bf59dbeac3ae9056fec702ad508  cleaned-labels/MMRR-21-6/labels.DKT31.manual+aseg_cleaned.nii.gz
+7a2259da5d035e9ab83efeabbcc583a9cb3d15f4f7cbed946ffdcb3bf2b86eac  cleaned-labels/MMRR-21-7/labels.DKT31.manual+aseg_cleaned.nii.gz
+13992131c99867c8866438ae86d69f4e097498d15fbd80eb89516a8512ea5ee0  cleaned-labels/MMRR-21-8/labels.DKT31.manual+aseg_cleaned.nii.gz
+c5dea0fae3cc86404eea91b9c422108125a726ef6e0fc40a607da803182d476f  cleaned-labels/MMRR-21-9/labels.DKT31.manual+aseg_cleaned.nii.gz
+c7088d7fa25b64c3f95ed55c7c22642b7a11dd36c0cd855e4be6f771b304ba64  cleaned-labels/MMRR-3T7T-2-1/labels.DKT31.manual+aseg_cleaned.nii.gz
+9f026246e950cc1a7b345e20cf51bcb80d5c5bbce95f4ed9ab8377233c57d76d  cleaned-labels/MMRR-3T7T-2-2/labels.DKT31.manual+aseg_cleaned.nii.gz
+20eb46d78b157d92d1f9314ff8da9d0ddea78f5d3f2d7bfc0c2a26c36241475e  cleaned-labels/NKI-RS-22-1/labels.DKT31.manual+aseg_cleaned.nii.gz
+682c6c3f7f033d551642dbbc537da923394e3d9268e81ecfbe908168fbaa36af  cleaned-labels/NKI-RS-22-10/labels.DKT31.manual+aseg_cleaned.nii.gz
+fc46df7ebb501ac8dba8e594097fd5f446f59938f4ace9c75f7eb1a25c148efe  cleaned-labels/NKI-RS-22-11/labels.DKT31.manual+aseg_cleaned.nii.gz
+86785fdc4ec069b23badb056dd3570b15f797e86d04ad067c93bc85356e47f3f  cleaned-labels/NKI-RS-22-12/labels.DKT31.manual+aseg_cleaned.nii.gz
+e343cf1aee9674f740919c17c76c6f0c63a52bb8bc583f16e3835827c18c3a57  cleaned-labels/NKI-RS-22-13/labels.DKT31.manual+aseg_cleaned.nii.gz
+9c6cafaab1dc46324c1f3fee25a6b22c7befbe68ff65cfdf2453802a5ae04322  cleaned-labels/NKI-RS-22-14/labels.DKT31.manual+aseg_cleaned.nii.gz
+2e8925b7eec744fb17fdb843c26bd64a558fda91e8ccbbd4c45ae63f3a42a700  cleaned-labels/NKI-RS-22-15/labels.DKT31.manual+aseg_cleaned.nii.gz
+6b2d86f7f7b03b5797a70563bf838d8d450001fa4e5f0e289e4f36108c86ad6c  cleaned-labels/NKI-RS-22-16/labels.DKT31.manual+aseg_cleaned.nii.gz
+9644c7e2658e12575d0e4c95015f3f36ea9efdba71e07188dbed77b63d841ab9  cleaned-labels/NKI-RS-22-17/labels.DKT31.manual+aseg_cleaned.nii.gz
+eeb0ff794d4827ae96fcc9aab431388d2e06b91b171cd6f6e22a4050931fcaf7  cleaned-labels/NKI-RS-22-18/labels.DKT31.manual+aseg_cleaned.nii.gz
+f8661ed03a57b3d2cd31332a73b00be87f8ea112d691964466f2c5e6cfd85f32  cleaned-labels/NKI-RS-22-19/labels.DKT31.manual+aseg_cleaned.nii.gz
+4ce66de7b030696ea772293845dbd37cab150bd3c845f754cc901c37d3cb9813  cleaned-labels/NKI-RS-22-2/labels.DKT31.manual+aseg_cleaned.nii.gz
+36e5e807fe900c2d9ccc971b1edcf93878c2f89aaf0621d333501f8b6c0cadcc  cleaned-labels/NKI-RS-22-20/labels.DKT31.manual+aseg_cleaned.nii.gz
+b1c66f690a01599bb13b569af0a93c8a253b0bf9509c04f9b398552e0e0a10be  cleaned-labels/NKI-RS-22-21/labels.DKT31.manual+aseg_cleaned.nii.gz
+9565ddebad253cb3277962ca9ec02e6debcbb5afa114e1a179a68b3c2ba87af3  cleaned-labels/NKI-RS-22-22/labels.DKT31.manual+aseg_cleaned.nii.gz
+846cae84366ea044dbc17f7d258fad4dba3aa4be34315f6525b308955305c8f2  cleaned-labels/NKI-RS-22-3/labels.DKT31.manual+aseg_cleaned.nii.gz
+d52224cd04f14fc83270e157d13fd38069334d256c90984ccece083f1a4b944e  cleaned-labels/NKI-RS-22-4/labels.DKT31.manual+aseg_cleaned.nii.gz
+20f94547fa701d34871ea4ae1b6e0ccca322e5ae960a5303bc7002d915585408  cleaned-labels/NKI-RS-22-5/labels.DKT31.manual+aseg_cleaned.nii.gz
+976576887509306ad37379bd758491f65c64506269e889d513df7edc9c82efa3  cleaned-labels/NKI-RS-22-6/labels.DKT31.manual+aseg_cleaned.nii.gz
+d3ea5bd28ca921b7ff4807b4aaaabca2357042c6af993f5c575327b47d5d1bb0  cleaned-labels/NKI-RS-22-7/labels.DKT31.manual+aseg_cleaned.nii.gz
+d9d40de20a5eeb717557453120ee4d12274b76ea673d896ab4451f879abec8b3  cleaned-labels/NKI-RS-22-8/labels.DKT31.manual+aseg_cleaned.nii.gz
+86406dc50478a33e3cb7bfe93399e43c077a09fce35b694a52a6ebe2974076a2  cleaned-labels/NKI-RS-22-9/labels.DKT31.manual+aseg_cleaned.nii.gz
+5439125c2815effa1c9304df1760879f72d624ed57a3a51c92a3afe655013027  cleaned-labels/NKI-TRT-20-1/labels.DKT31.manual+aseg_cleaned.nii.gz
+5832d339dc7a75783e3fc262a3c027152017673ca48a423a6d5405613b7f39db  cleaned-labels/NKI-TRT-20-10/labels.DKT31.manual+aseg_cleaned.nii.gz
+73c7c4a3179d0827de4dd84f9dc10513e750c50fdce5cc9ecb6df3bc64e756b1  cleaned-labels/NKI-TRT-20-11/labels.DKT31.manual+aseg_cleaned.nii.gz
+c3c5bd5479bfaef5e1b2bce0a5f94a07c18a7481caa80ecb9b9b09a4b5cd84ff  cleaned-labels/NKI-TRT-20-12/labels.DKT31.manual+aseg_cleaned.nii.gz
+2b9e0c64a754ea79be2e442b6d6f9279aafff197917e299dfa8ebf9417e4ab67  cleaned-labels/NKI-TRT-20-13/labels.DKT31.manual+aseg_cleaned.nii.gz
+b6b1ff89f70317afc9fbe893620ef9cef65b41718cefe1b16e9d78d27b5b942d  cleaned-labels/NKI-TRT-20-14/labels.DKT31.manual+aseg_cleaned.nii.gz
+438c8de70e4ed201598be5fb83e215b6236f5faf82da2967cd15226768aa35a7  cleaned-labels/NKI-TRT-20-15/labels.DKT31.manual+aseg_cleaned.nii.gz
+2282caf1eb877b27a6d63f361f7be3e10c19e7f7103e0fa8cb2653f60df330a1  cleaned-labels/NKI-TRT-20-16/labels.DKT31.manual+aseg_cleaned.nii.gz
+4cf489088eeba32dfd9d4e625f49705309c1fa516817979c3b4d62b646072077  cleaned-labels/NKI-TRT-20-17/labels.DKT31.manual+aseg_cleaned.nii.gz
+7288fa77bd1bf1d0fd51360fd9c5b5d4a11a9242ffb4c4e8db27c89072dd5bc0  cleaned-labels/NKI-TRT-20-18/labels.DKT31.manual+aseg_cleaned.nii.gz
+83cb3248d15c78053d80c0c92382221a591b41d8503706f195b51ecb5f996f8b  cleaned-labels/NKI-TRT-20-19/labels.DKT31.manual+aseg_cleaned.nii.gz
+72b8e15f28ddfcfa6f1c7e848f20c1b5e7ec21e0216c83ed77c0f59565f2783a  cleaned-labels/NKI-TRT-20-2/labels.DKT31.manual+aseg_cleaned.nii.gz
+709f29831019d699d989ab07fda592e25be6a00632e4377cea6a41f7411b5a4a  cleaned-labels/NKI-TRT-20-20/labels.DKT31.manual+aseg_cleaned.nii.gz
+dfb2e6fbba267bd930c120a791f9cd776ec78b64dcbf07fa57f3f27e39c3576f  cleaned-labels/NKI-TRT-20-3/labels.DKT31.manual+aseg_cleaned.nii.gz
+4e223514a3a98962d501b60bdacbd083516f692dac2bc0693fd7bc9e4f79cf01  cleaned-labels/NKI-TRT-20-4/labels.DKT31.manual+aseg_cleaned.nii.gz
+9e2115e5e3ad8b0154830f9136c36a7ee806ce1b26f4c8a7c44cf1120df4e80b  cleaned-labels/NKI-TRT-20-5/labels.DKT31.manual+aseg_cleaned.nii.gz
+17353641dbd24d212035e91b50cbebe1cd4d652654849e70d39e66c84f713de7  cleaned-labels/NKI-TRT-20-6/labels.DKT31.manual+aseg_cleaned.nii.gz
+57987c0dabc2c677c6984aa1add02e17775889fef0a6109d22b615ebb44d24f4  cleaned-labels/NKI-TRT-20-7/labels.DKT31.manual+aseg_cleaned.nii.gz
+5b625cfd6a095e776fd5fa941a10c475f986de9147e5c7567eb612cb4db276d7  cleaned-labels/NKI-TRT-20-8/labels.DKT31.manual+aseg_cleaned.nii.gz
+3377a5cdaa435056a2177715823e6b1116d8f90704f224763b080aa5aa3cd22d  cleaned-labels/NKI-TRT-20-9/labels.DKT31.manual+aseg_cleaned.nii.gz
+96eeb0f032bef6c204a00db16e836c149927fc9c87b929253f9396b932aeb18c  cleaned-labels/OASIS-TRT-20-1/labels.DKT31.manual+aseg_cleaned.nii.gz
+b77e5aac9af2e2304f01ceb1b532e7ccbae5a0f016bdf5696a82193ed4daaaa9  cleaned-labels/OASIS-TRT-20-10/labels.DKT31.manual+aseg_cleaned.nii.gz
+e0a3af827bcf98b9ff37b9d1789e5db6af967128236b9bbce9a0175e8e732b95  cleaned-labels/OASIS-TRT-20-11/labels.DKT31.manual+aseg_cleaned.nii.gz
+256fa783cb6919664753d19e118680c4a5babaec2a24986ff72ec19ad6c432d4  cleaned-labels/OASIS-TRT-20-12/labels.DKT31.manual+aseg_cleaned.nii.gz
+3b52cb8103f87a231aa4813a32a6b3775229332b8a11255671fb727a955c9de7  cleaned-labels/OASIS-TRT-20-13/labels.DKT31.manual+aseg_cleaned.nii.gz
+6a443c115738c57968c981bc2722633989442a2fbba449e42b93460d75a1c384  cleaned-labels/OASIS-TRT-20-14/labels.DKT31.manual+aseg_cleaned.nii.gz
+b3f21130fa835db6c6f0674a10248a55629343126e43941ce4dd12d470b129b0  cleaned-labels/OASIS-TRT-20-15/labels.DKT31.manual+aseg_cleaned.nii.gz
+4974b8f56989af2609781b856fa079d5526f225dbd1c30dea4f0756bc072cd00  cleaned-labels/OASIS-TRT-20-16/labels.DKT31.manual+aseg_cleaned.nii.gz
+5afe15f8181ae6c2975e475e7ac27ec236e98e36d585d840c5527b940bde765d  cleaned-labels/OASIS-TRT-20-17/labels.DKT31.manual+aseg_cleaned.nii.gz
+4f3be1fde4305ae3fec7958eac33cdd40e097977aafc040ecc42facb3114d658  cleaned-labels/OASIS-TRT-20-18/labels.DKT31.manual+aseg_cleaned.nii.gz
+1029c16cb9a9aee10771be142f9bc09ab2b6cc900f0ce2e2616414fbaf9e2276  cleaned-labels/OASIS-TRT-20-19/labels.DKT31.manual+aseg_cleaned.nii.gz
+8ce6cb615354d57583f0fc1b1298ef862c2bb78a969033147f3965472e47f3cc  cleaned-labels/OASIS-TRT-20-2/labels.DKT31.manual+aseg_cleaned.nii.gz
+7c7582fe9ce13faa5f13065b18d82461d2480fafe064a787da6c04a5fd75f66a  cleaned-labels/OASIS-TRT-20-20/labels.DKT31.manual+aseg_cleaned.nii.gz
+167276b45987e6b25d19fa1679a44a5b30265041021560d90f4cc2d3df54f7cd  cleaned-labels/OASIS-TRT-20-3/labels.DKT31.manual+aseg_cleaned.nii.gz
+44682bcd36394706a0fb153fcc3342ee535e33a3711f4664b1be6a38528c7d9d  cleaned-labels/OASIS-TRT-20-4/labels.DKT31.manual+aseg_cleaned.nii.gz
+772ec653048a9e780231d33740e38049fdc5f5e6f425cfb4821d7108562edddc  cleaned-labels/OASIS-TRT-20-5/labels.DKT31.manual+aseg_cleaned.nii.gz
+743529ffaa0fde61fbd4bb17a7caababe477a3e8e3a3e7aa338bce7a77f0af4a  cleaned-labels/OASIS-TRT-20-6/labels.DKT31.manual+aseg_cleaned.nii.gz
+bdbe9cda2e3226bc64b2b4aa4a6191c92fcbdfc47f1821ba13cd613cc49bcabf  cleaned-labels/OASIS-TRT-20-7/labels.DKT31.manual+aseg_cleaned.nii.gz
+9499cbb4b201d75c2d2a2e9c746d6c31b03165d04a39b8cce669c7b4d8fe8d15  cleaned-labels/OASIS-TRT-20-8/labels.DKT31.manual+aseg_cleaned.nii.gz
+039623c22600f1fd927a5d114221351a187e3a2e659bde9d8446885e085d4ee4  cleaned-labels/OASIS-TRT-20-9/labels.DKT31.manual+aseg_cleaned.nii.gz
+c3c5025cafd71a680c0503ef9ea1c2a37f39ad761ceb9d34b948aa4a4449ad9d  cleaned-labels/Twins-2-1/labels.DKT31.manual+aseg_cleaned.nii.gz
+b73a602f187cd33a74279a406bb6cf8b24ef2a73bc7a6d128e7df1cf78721d93  cleaned-labels/Twins-2-2/labels.DKT31.manual+aseg_cleaned.nii.gz
