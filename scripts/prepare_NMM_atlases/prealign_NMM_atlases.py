@@ -1,3 +1,4 @@
+import argparse
 import os
 import numpy as np
 import nibabel as nib
@@ -8,10 +9,14 @@ from tqdm import tqdm
 nib.Nifti1Header.quaternion_threshold = -np.finfo(np.float32).eps * 10  # CANDI dataset doesn't pass this check
 
 def main():
+    parser = argparse.ArgumentParser(description="Pre-align the NMM atlases to MNI space (affine, updates the sform).")
+    parser.add_argument("--fixed-image", required=True, help="MNI template image")
+    parser.add_argument("--atlas-dir", default="data/atlases/NMM_atlases", help="folder with one folder per atlas")
+    args = parser.parse_args()
 
-    fixed_image_path = "/mnt/nas1/fernando/reference/MNI_152_mri.nii.gz"
-    images_to_align = natsorted(glob("../data/atlases/NMM_atlases/*/srr.nii*"))
-    segmentations_to_align = natsorted(glob("../data/atlases/NMM_atlases/*/parcellation.nii.gz"))
+    fixed_image_path = args.fixed_image
+    images_to_align = natsorted(glob(os.path.join(args.atlas_dir, "*", "srr.nii*")))
+    segmentations_to_align = natsorted(glob(os.path.join(args.atlas_dir, "*", "parcellation.nii.gz")))
 
     assert(len(images_to_align) == len(segmentations_to_align)), (("Expected the same number of images and "
                                                                    "segmentations, found ")
@@ -27,10 +32,6 @@ def main():
         sform_registered_output_img_path = update_sform(moving_image_path, registered_sform, output_dir)
         sform_registered_output_seg_path = update_sform(seg_path, registered_sform, output_dir)
 
-        # # check registration in itksnap
-        # os.system(f"itksnap -g {sform_registered_output_img_path} "
-        #           f" -o {fixed_image_path} {niftyreg_resampled_img} "
-        #           f" -s {sform_registered_output_seg_path}")
 
 
 def get_affine_with_niftyreg(fixed_image_path, moving_image_path, output_dir, no_overwrite=False):

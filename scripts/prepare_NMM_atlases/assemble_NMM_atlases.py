@@ -1,12 +1,17 @@
+import argparse
 import os
 from glob import glob
 from natsort import natsorted
 import shutil
 import pandas as pd
 
-nmm_ds_path = "/mnt/nas1/Datasets/NMM_BrainParc/NMM_BrainParc_clean"
+parser = argparse.ArgumentParser(description="Copy the NMM_BrainParc images and segmentations into one folder per atlas.")
+parser.add_argument("--nmm-dataset", required=True, help="NMM_BrainParc_clean folder (with images/, labels/, xml/)")
+parser.add_argument("--out-atlas-dir", required=True, help="output folder, e.g. data/atlases/NMM_atlases")
+args = parser.parse_args()
 
-out_atlas_dir = "/home/aaron/Dropbox/KCL/Projects/gif-python/data/atlases/NMM_atlases"
+nmm_ds_path = args.nmm_dataset
+out_atlas_dir = args.out_atlas_dir
 
 images = [i for i in natsorted(glob(os.path.join(nmm_ds_path, "images", "*_0000.nii.gz")))]
 segmentations = [i for i in natsorted(glob(os.path.join(nmm_ds_path, "labels", "*seg.nii.gz")))]

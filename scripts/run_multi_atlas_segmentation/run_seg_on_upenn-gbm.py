@@ -1,11 +1,14 @@
 import os
 import time
 
+import logging
 from src.multi_atlas.multi_atlas_segmentation import multi_atlas_segmentation
 from glob import glob
 from natsort import natsorted
 
 from src.utils.definitions import ROOT_DIR
+
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 import argparse
 
@@ -51,6 +54,3 @@ print("Total running time: ", time.time() - time_0, " seconds")
 
 seg_out_path = os.path.join(results_dir, "final_parcellation.nii.gz")
 print("Multi-atlas segmentation output saved to: ", seg_out_path)
-print("Visualizing segmentation output with itksnap...")
-os.system("itksnap -g " + img_path + " -s " + seg_out_path)
-

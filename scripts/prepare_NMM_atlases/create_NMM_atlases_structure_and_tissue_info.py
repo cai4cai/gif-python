@@ -1,3 +1,4 @@
+import argparse
 import os
 import warnings
 from glob import glob
@@ -9,12 +10,18 @@ import numpy as np
 
 warnings.simplefilter('always', UserWarning)
 
-nmm_ds_path = "/mnt/nas1/Datasets/NMM_BrainParc/NMM_BrainParc_clean"
+parser = argparse.ArgumentParser(description="Create structures_info.csv for the NMM atlases.")
+parser.add_argument("--nmm-dataset", required=True, help="NMM_BrainParc_clean folder (with images/, labels/, xml/)")
+parser.add_argument("--out-atlas-dir", required=True, help="output folder, e.g. data/atlases/NMM_atlases")
+parser.add_argument("--genfi-structures-info", required=True,
+                    help="GENFI structures_info.csv (it has the tissue assignments, which NMM does not provide)")
+args = parser.parse_args()
 
-out_nmm_atlas_dir = "/home/aaron/Dropbox/KCL/Projects/gif-python/data/atlases/NMM_atlases"
+nmm_ds_path = args.nmm_dataset
+out_nmm_atlas_dir = args.out_atlas_dir
 
 # get GENFI labels, since they have the tissue assignments (not available in NMM datasets)
-df_GENFI = pd.read_csv("/home/aaron/Dropbox/KCL/Projects/gif-python/data/atlases/GENFI_atlases/structures_info.csv")
+df_GENFI = pd.read_csv(args.genfi_structures_info)
 GENFI_descs = df_GENFI['name'].values
 
 images = [i for i in natsorted(glob(os.path.join(nmm_ds_path, "images", "*_0000.nii.gz")))]
