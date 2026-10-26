@@ -50,6 +50,9 @@ Issues = "https://github.com/cai4cai/gif-python/issues"
 [tool.setuptools.dynamic]
 version = { attr = "src.__version__" }
 
+[tool.setuptools.package-data]
+"src.resources.mindboggle101" = ["*.csv", "*.txt", "*.sha256", "*.md"]
+
 [tool.setuptools.packages.find]
 # The package layout is flat (`import src...`) and is kept as is.
 include = ["src", "src.*"]
