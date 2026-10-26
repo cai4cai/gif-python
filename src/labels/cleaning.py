@@ -105,8 +105,8 @@ def clean_labels_array(
             if forbidden.size:
                 voxel = tuple(int(v) for v in block[forbidden[0]])
                 raise ValueError(
-                    f"The most frequent neighbouring label of voxel {voxel} (label {label}) is {int(mode[forbidden[0]])}, "
-                    f"which is also in the labels to replace {labels_to_replace}"
+                    f"The most frequent neighbouring label of voxel {voxel} (label {label}) is "
+                    f"{int(mode[forbidden[0]])}, which is also in the labels to replace {labels_to_replace}"
                 )
             out[tuple(block.T)] = mode
 
@@ -162,7 +162,4 @@ def expand_inputs(patterns: Sequence[str], suffix: str = "_cleaned") -> List[Pat
 
 
 def _is_output_name(path: Path, suffix: str) -> bool:
-    for extension in (".nii.gz", ".nii"):
-        if path.name.endswith(suffix + extension):
-            return True
-    return False
+    return any(path.name.endswith(suffix + extension) for extension in (".nii.gz", ".nii"))

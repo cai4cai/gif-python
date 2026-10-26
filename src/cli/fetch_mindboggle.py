@@ -33,12 +33,23 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--data-dir", type=Path, default=Path("data"), help="default: ./data")
     parser.add_argument("--atlas-dir", type=Path, default=None, help="default: DATA_DIR/atlases/Mindboggle101")
     parser.add_argument(
-        "--download-dir", type=Path, default=None, help="where the archives are kept (default: DATA_DIR/downloads/mindboggle101)"
+        "--download-dir",
+        type=Path,
+        default=None,
+        help="where the archives are kept (default: DATA_DIR/downloads/mindboggle101)",
     )
     parser.add_argument("--only", nargs="+", choices=sorted(ARCHIVES), metavar="NAME", help="fetch only these archives")
-    parser.add_argument("--all-files", action="store_true", help="extract every file of the archives, not only the three used")
+    parser.add_argument(
+        "--all-files", action="store_true", help="extract every file of the archives, not only the three used"
+    )
     parser.add_argument("--clean", action="store_true", help="also create labels.DKT31.manual+aseg_cleaned.nii.gz")
-    parser.add_argument("--labels", nargs="+", type=int, default=None, help="labels removed by --clean (default: the six sparse labels)")
+    parser.add_argument(
+        "--labels",
+        nargs="+",
+        type=int,
+        default=None,
+        help="labels removed by --clean (default: the six sparse labels)",
+    )
     parser.add_argument("--skip-verify", action="store_true", help="do not verify the checksums (not recommended)")
     parser.add_argument("--delete-archives", action="store_true", help="delete each archive after extraction")
     parser.add_argument("--list", action="store_true", help="list the archives and exit")
@@ -64,7 +75,10 @@ def run(args: argparse.Namespace) -> int:
         shipped = load_shipped_checksums()
         for archive in ARCHIVES.values():
             digest = shipped.get(archive.filename, "(not recorded)")
-            print(f"{archive.name:14s} {archive.n_subjects:3d} subjects {archive.size / 1e6:7.0f} MB  {archive.url}\n{'':14s} sha256 {digest}")
+            print(
+                f"{archive.name:14s} {archive.n_subjects:3d} subjects {archive.size / 1e6:7.0f} MB  {archive.url}\n"
+                f"{'':14s} sha256 {digest}"
+            )
         return 0
 
     atlas_dir = args.atlas_dir or args.data_dir / "atlases" / "Mindboggle101"

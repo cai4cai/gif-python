@@ -1,11 +1,11 @@
+import logging
 import os
 import time
-
-import logging
-from src.multi_atlas.multi_atlas_segmentation import multi_atlas_segmentation
 from glob import glob
+
 from natsort import natsorted
 
+from src.multi_atlas.multi_atlas_segmentation import multi_atlas_segmentation
 from src.utils.definitions import ROOT_DIR
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -23,7 +23,7 @@ taskid = args.taskid
 
 img_paths = natsorted(glob(os.path.join(ROOT_DIR, "data", "input", "OpenNeuro", "openneurocoll_*", "openneurocoll_*.nii.gz")))
 
-assert(len(img_paths) > 0), f"Did not find any images"
+assert(len(img_paths) > 0), "Did not find any images"
 print(f"Found {len(img_paths)} images")
 print(f"Running taskid {taskid} out of {len(img_paths)}, img_path = {img_paths[taskid]}")
 

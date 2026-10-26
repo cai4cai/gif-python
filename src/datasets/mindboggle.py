@@ -16,7 +16,6 @@ Target layout (``<atlas_dir>`` is ``data/atlases/Mindboggle101`` by default)::
 
 from __future__ import annotations
 
-import gzip
 import hashlib
 import logging
 import re
@@ -135,7 +134,7 @@ def load_shipped_checksums() -> Dict[str, str]:
 # --------------------------------------------------------------------------------- download
 def default_opener(url: str) -> BinaryIO:
     request = urllib.request.Request(url, headers={"User-Agent": "gif-python fetch-mindboggle"})
-    return urllib.request.urlopen(request, timeout=60)  # noqa: S310 - fixed https URL
+    return urllib.request.urlopen(request, timeout=60)
 
 
 def download_archive(

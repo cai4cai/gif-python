@@ -112,13 +112,13 @@ def cmd_run(args: argparse.Namespace) -> int:
     sys.path.insert(0, str(args.code_root.resolve()))
     os.environ.setdefault("NUMBA_CACHE_DIR", str(out / ".numba_cache"))
 
-    config_kwargs = dict(
-        niftyreg_path=str(args.niftyreg_path),
-        niftyseg_path=str(args.niftyseg_path),
-        omp=args.omp,
-        num_pools=args.pools,
-        multiprocessing=args.pools > 1,
-    )
+    config_kwargs = {
+        "niftyreg_path": str(args.niftyreg_path),
+        "niftyseg_path": str(args.niftyseg_path),
+        "omp": args.omp,
+        "num_pools": args.pools,
+        "multiprocessing": args.pools > 1,
+    }
     new_api = importlib.util.find_spec("src.utils.config") is not None
     run_kwargs = {}
     if new_api:

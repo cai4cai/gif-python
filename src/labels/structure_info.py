@@ -96,9 +96,8 @@ def labels_in_segmentations(paths: Iterable[PathLike]) -> List[int]:
     labels: set = set()
     for path in paths:
         data = np.asanyarray(nib.load(str(path)).dataobj)
-        if not np.issubdtype(data.dtype, np.integer):
-            if not np.array_equal(np.rint(data), data):
-                raise ValueError(f"{path} contains non-integer values; it is not a label map")
+        if not np.issubdtype(data.dtype, np.integer) and not np.array_equal(np.rint(data), data):
+            raise ValueError(f"{path} contains non-integer values; it is not a label map")
         values = np.unique(data).astype(np.int64)
         if values.min() < 0:
             raise ValueError(f"{path} contains negative labels")
@@ -260,7 +259,8 @@ def make_structure_info(
         )
     if unassigned:
         logger.warning(
-            "%d label(s) match no tissue rule and were assigned to all tissues; edit the csv or pass --tissue-rules: %s",
+            "%d label(s) match no tissue rule and were assigned to all tissues; "
+            "edit the csv or pass --tissue-rules: %s",
             len(unassigned),
             unassigned,
         )

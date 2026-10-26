@@ -44,8 +44,9 @@ def run_tool(args: Sequence[Union[str, Path]]) -> subprocess.CompletedProcess:
         n_warnings = sum(1 for line in result.stdout.splitlines() if "WARNING" in line)
         if n_warnings:
             logger.info(
-                "%s finished successfully and printed %d warning line(s) (for example 'The folding correction scheme "
-                "failed'); these are informational, see docs/tuning-registration.md. Use -vv (or DEBUG logging) to see them.",
+                "%s finished successfully and printed %d warning line(s) (for example 'The folding correction "
+                "scheme failed'); these are informational, see docs/tuning-registration.md. "
+                "Use -vv (or DEBUG logging) to see them.",
                 tool,
                 n_warnings,
             )

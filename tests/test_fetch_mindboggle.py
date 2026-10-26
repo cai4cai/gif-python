@@ -71,7 +71,7 @@ def patched(monkeypatch, fake_archive):
     monkeypatch.setattr(mb, "ARCHIVES", {"Fake-2": archive})
     checksums = {archive.filename: sha256_file(fake_archive)}
     monkeypatch.setattr(mb, "load_shipped_checksums", lambda: dict(checksums))
-    monkeypatch.setattr(mb, "default_opener", lambda url: open(fake_archive, "rb"))
+    monkeypatch.setattr(mb, "default_opener", lambda url: io.BytesIO(fake_archive.read_bytes()))
     return archive, checksums
 
 

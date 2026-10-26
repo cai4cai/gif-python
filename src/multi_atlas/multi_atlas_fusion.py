@@ -27,7 +27,8 @@ def get_multi_atlas_proba_seg(warped_atlases, weights, labels_array, multi_atlas
     for x in prange(warped_atlases.shape[1]):
         for y in range(warped_atlases.shape[2]):
             for z in range(warped_atlases.shape[3]):
-                if sum_warped_atlases[x, y, z] > 0:  # if there is at least one atlas at this voxel that has a non-zero label
+                # if there is at least one atlas at this voxel that has a non-zero label
+                if sum_warped_atlases[x, y, z] > 0:
                     for l_idx in range(len(labels_array)):
                         for a in range(warped_atlases.shape[0]):
 
@@ -67,7 +68,8 @@ def get_multi_atlas_tissue_prior(
             continue
         assigned_tissues = structure_dict['tissues'][l]
         for t in assigned_tissues:
-            multi_atlas_tissue_prior[:, :, :, t] += multi_atlas_proba_seg[:, :, :, l_idx] / len(assigned_tissues)  # H x W x D x num_tissue
+            # H x W x D x num_tissue
+            multi_atlas_tissue_prior[:, :, :, t] += multi_atlas_proba_seg[:, :, :, l_idx] / len(assigned_tissues)
 
     # set the background tissue class to 1 in all voxels that are not in the mask
     if mask is not None:
@@ -98,7 +100,8 @@ def get_structure_seg_from_tissue_seg(
     assigned_tissues_dict: Dict[int, Sequence[int]],
 ) -> np.ndarray:
     """
-    Assigns a label to each voxel in tiss_seg based on the highest probability in lab_probs, and the assigned_tissues_dict.
+    Assigns a label to each voxel in tiss_seg based on the highest probability in lab_probs, and the
+    assigned_tissues_dict.
     That means for each voxel, the highest label from lab_probs is checked against the assigned_tissues_dict to see if
     any of the assigned tissues match the tissue at that voxel in tiss_seg. If there is a match, the label is assigned
     to that voxel in structure_seg.

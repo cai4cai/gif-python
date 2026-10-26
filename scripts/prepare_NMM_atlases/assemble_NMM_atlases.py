@@ -1,9 +1,10 @@
 import argparse
 import os
-from glob import glob
-from natsort import natsorted
 import shutil
+from glob import glob
+
 import pandas as pd
+from natsort import natsorted
 
 parser = argparse.ArgumentParser(description="Copy the NMM_BrainParc images and segmentations into one folder per atlas.")
 parser.add_argument("--nmm-dataset", required=True, help="NMM_BrainParc_clean folder (with images/, labels/, xml/)")

@@ -153,7 +153,7 @@ def multi_atlas_segmentation(
     labels_array = np.array(list(unique_labels))
 
     # mapping from index to label
-    index_to_label = {index: label for index, label in enumerate(unique_labels)}
+    index_to_label = dict(enumerate(unique_labels))
 
     logger.info("Number of unique labels in the structure info csv file: %d", len(structure_df.index))
 
@@ -170,7 +170,9 @@ def multi_atlas_segmentation(
             f"but not in the tissue info csv file {tissue_info_csv_path}: "
             f"{sorted(int(t) for t in set_of_tissues_not_in_tissue_info_csv)}."
         )
-    set_of_tissues_not_in_structure_info_csv = set(tissues_in_tissue_info_csv) - set(unique_tissues_in_structure_info_csv)
+    set_of_tissues_not_in_structure_info_csv = set(tissues_in_tissue_info_csv) - set(
+        unique_tissues_in_structure_info_csv
+    )
     if set_of_tissues_not_in_structure_info_csv:
         logger.info(
             "The following tissues are present in the tissue info csv file %s, but no structure is assigned to "
@@ -180,7 +182,9 @@ def multi_atlas_segmentation(
             set_of_tissues_not_in_structure_info_csv,
         )
 
-    logger.info("Number of unique tissues in the structure info csv file: %d", len(unique_tissues_in_structure_info_csv))
+    logger.info(
+        "Number of unique tissues in the structure info csv file: %d", len(unique_tissues_in_structure_info_csv)
+    )
     logger.info("Number of unique tissues in the tissue info csv file: %d", len(tissues_in_tissue_info_csv))
     logger.info("Finished checks. Time elapsed: %.2f seconds.", time.time() - time_0)
 
@@ -255,7 +259,9 @@ def multi_atlas_segmentation(
         warped_atlases = np.array([nibabel_load_and_get_fdata(*args) for args in warped_atlas_load_args])
     # (num_atlases x H x W x D)
 
-    logger.info("Warped atlas segmentations loading completed after %.3f seconds", time.time() - t_0_load_warped_atlases)
+    logger.info(
+        "Warped atlas segmentations loading completed after %.3f seconds", time.time() - t_0_load_warped_atlases
+    )
 
     # calculate the multi-atlas probabilities for each structure
     logger.info("Calculate the multi-atlas probabilities for each structure...")

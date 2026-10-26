@@ -17,7 +17,6 @@ from collections.abc import Iterable
 
 from src.multi_atlas.multi_atlas_segmentation import multi_atlas_segmentation
 
-
 RESULTS_ROOT = "outputs/mb59_to_mb42_mindboggle101_gif"
 
 IMAGE_NAME = "t1weighted_brain.nii.gz"

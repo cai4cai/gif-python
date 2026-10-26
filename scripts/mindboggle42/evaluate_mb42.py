@@ -16,7 +16,6 @@ from pathlib import Path
 import nibabel as nib
 import numpy as np
 
-
 PREDICTION_NAME = "final_parcellation.nii.gz"
 GT_NAME = "labels.DKT31.manual+aseg_cleaned.nii.gz"
 

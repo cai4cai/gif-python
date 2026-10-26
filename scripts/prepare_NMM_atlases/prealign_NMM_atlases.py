@@ -1,8 +1,9 @@
 import argparse
 import os
-import numpy as np
-import nibabel as nib
 from glob import glob
+
+import nibabel as nib
+import numpy as np
 from natsort import natsorted
 from tqdm import tqdm
 
@@ -29,8 +30,8 @@ def main():
 
         sform_affine, niftyreg_resampled_img = get_affine_with_niftyreg(fixed_image_path, moving_image_path, output_dir, no_overwrite=True)
         registered_sform = get_registered_sform(moving_image_path, sform_affine)
-        sform_registered_output_img_path = update_sform(moving_image_path, registered_sform, output_dir)
-        sform_registered_output_seg_path = update_sform(seg_path, registered_sform, output_dir)
+        update_sform(moving_image_path, registered_sform, output_dir)
+        update_sform(seg_path, registered_sform, output_dir)
 
 
 
@@ -54,7 +55,7 @@ def get_affine_with_niftyreg(fixed_image_path, moving_image_path, output_dir, no
     if no_overwrite and os.path.exists(resampled_img_output_path) and os.path.exists(output_affine_path):
         print("Affine registration already performed, skipping.")
     else:
-        os.system(f"reg_aladin -ref " + fixed_image_path +
+        os.system("reg_aladin -ref " + fixed_image_path +
                   " -flo " + moving_image_path +
                   " -res " + resampled_img_output_path +
                   " -aff " + output_affine_path +

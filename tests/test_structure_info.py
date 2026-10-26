@@ -147,7 +147,7 @@ def test_rules_are_ordered_specific_before_general():
 
 
 def test_cli(tmp_path, write_nifti, capsys):
-    seg = write_nifti(np.array([[[0, 17, 18]]], dtype=np.uint8), tmp_path / "seg_1.nii.gz")
+    write_nifti(np.array([[[0, 17, 18]]], dtype=np.uint8), tmp_path / "seg_1.nii.gz")
     lut = tmp_path / "lut.txt"
     write_lut(lut, [(17, "Left-Hippocampus", (1, 2, 3)), (18, "Left-Amygdala", (4, 5, 6))])
     code = main(["make-structure-info", str(tmp_path / "seg_*.nii.gz"), "--color-table", str(lut), "--out-dir", str(tmp_path / "o")])

@@ -1,9 +1,10 @@
 import argparse
 import os
 import subprocess
-import numpy as np
-import nibabel as nib
 from glob import glob
+
+import nibabel as nib
+import numpy as np
 from natsort import natsorted
 from tqdm import tqdm
 

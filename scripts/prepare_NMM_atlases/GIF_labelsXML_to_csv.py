@@ -1,7 +1,9 @@
 import argparse
 import csv
 import xml.etree.ElementTree as ET
+
 import pandas as pd
+
 
 def parse_xml_file(file_path):
     def parse_element(element):

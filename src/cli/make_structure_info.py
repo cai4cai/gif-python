@@ -31,7 +31,9 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         help="csv with the columns pattern (regular expression on the lower-case name) and tissues, tried first",
     )
-    parser.add_argument("--tissues-info", default=None, help="use this tissues_info.csv instead of the default six tissues")
+    parser.add_argument(
+        "--tissues-info", default=None, help="use this tissues_info.csv instead of the default six tissues"
+    )
     parser.add_argument("--strict", action="store_true", help="fail if a label has no name or no tissue rule")
     parser.add_argument("--no-itksnap", action="store_true", help="do not write the ITK-SNAP label description file")
 

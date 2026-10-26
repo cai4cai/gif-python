@@ -7,6 +7,7 @@ import json
 import logging
 import time
 from pathlib import Path
+
 from src.utils.config import GifConfig, default_config, field_names
 
 logger = logging.getLogger(__name__)
@@ -39,7 +40,9 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     io.add_argument("--mask", type=Path, default=None, help="mask of the image to segment (optional)")
     io.add_argument("--atlas-dir", type=Path, help="folder with one sub-folder per atlas")
     io.add_argument("--atlas-img", default=DEFAULT_ATLAS_IMG, help="atlas image file name (default: %(default)s)")
-    io.add_argument("--atlas-seg", default=DEFAULT_ATLAS_SEG, help="atlas segmentation file name (default: %(default)s)")
+    io.add_argument(
+        "--atlas-seg", default=DEFAULT_ATLAS_SEG, help="atlas segmentation file name (default: %(default)s)"
+    )
     io.add_argument("--atlas-mask", default=None, help="atlas mask file name (optional)")
     io.add_argument(
         "--exclude-atlas", action="append", default=[], metavar="NAME", help="leave this atlas out (repeatable)"

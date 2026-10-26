@@ -109,11 +109,11 @@ class GifConfig:
             raise ValueError(f"resample_method must be 0 or 1, got {self.resample_method}")
 
     # ------------------------------------------------------------------ derived copies
-    def replace(self, **changes: Any) -> "GifConfig":
+    def replace(self, **changes: Any) -> GifConfig:
         """Return a copy with the given fields changed."""
         return dataclasses.replace(self, **changes)
 
-    def with_overrides(self, overrides: Optional[Dict[str, Any]] = None, **kwargs: Any) -> "GifConfig":
+    def with_overrides(self, overrides: Optional[Dict[str, Any]] = None, **kwargs: Any) -> GifConfig:
         """Like :meth:`replace`, but values may be strings (``"0.2"``) that are converted to the
         type of the field, and unknown names raise a ``ValueError`` listing the valid ones."""
         merged = dict(overrides or {}, **kwargs)

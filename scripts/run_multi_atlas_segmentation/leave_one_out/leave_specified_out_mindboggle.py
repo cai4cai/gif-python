@@ -1,12 +1,12 @@
+import argparse
+import logging
 import os
 import time
-
-import logging
-from src.multi_atlas.multi_atlas_segmentation import multi_atlas_segmentation
 from glob import glob
-from natsort import natsorted
-import argparse
 
+from natsort import natsorted
+
+from src.multi_atlas.multi_atlas_segmentation import multi_atlas_segmentation
 from src.utils.definitions import ROOT_DIR
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")

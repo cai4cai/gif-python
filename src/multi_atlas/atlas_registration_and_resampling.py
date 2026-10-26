@@ -101,7 +101,9 @@ def warp_atlas_and_calc_similarity_weights(
             warped_atlas_seg_path=warped_atlas_seg_path,
             config=config,
         )
-        logger.info("Registration and resampling of %s completed after %.3f seconds", atlas_name, time.time() - time_0_reg)
+        logger.info(
+            "Registration and resampling of %s completed after %.3f seconds", atlas_name, time.time() - time_0_reg
+        )
 
     # Compute the LNCC distance based weights for the GIF-like fusion
     if config.use_old_results and weights_path.exists():

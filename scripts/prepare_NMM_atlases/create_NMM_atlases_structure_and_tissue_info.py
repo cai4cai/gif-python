@@ -2,11 +2,12 @@ import argparse
 import os
 import warnings
 from glob import glob
-from natsort import natsorted
-import pandas as pd
-import xmltodict
+
 import nibabel as nib
 import numpy as np
+import pandas as pd
+import xmltodict
+from natsort import natsorted
 
 warnings.simplefilter('always', UserWarning)
 
@@ -56,7 +57,7 @@ for i, (img_p, seg_p, xml_p) in enumerate(zip(images, segmentations, label_maps)
     print("Found a total of ", len(labels), " labels in the segmentation.")
     print("Labels: ", labels)
 
-    with open(xml_p, "r") as f:
+    with open(xml_p) as f:
         xml_string = f.read()
 
     xml_dict = xmltodict.parse(xml_string)
