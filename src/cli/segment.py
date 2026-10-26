@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 HELP = "Segment an image with a set of atlases (registration, label fusion, tissue EM)."
 
 #: file names of the Mindboggle-101 atlases as laid out by ``gif-python fetch-mindboggle``
-DEFAULT_ATLAS_IMG = "t1weighted.nii.gz"
+DEFAULT_ATLAS_IMG = "t1weighted_brain.nii.gz"
 DEFAULT_ATLAS_SEG = "labels.DKT31.manual+aseg_cleaned.nii.gz"
 
 EPILOG = """\
