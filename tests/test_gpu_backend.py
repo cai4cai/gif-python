@@ -85,7 +85,7 @@ def test_backend_is_validated():
     with pytest.raises(ValueError, match="gpu_numerics"):
         GifConfig(gpu_numerics=2)
     with pytest.raises(ValueError, match="gpu_batch"):
-        GifConfig(gpu_batch=0)
+        GifConfig(gpu_batch=-1)
 
 
 def test_backend_can_be_set_from_strings():

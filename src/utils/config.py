@@ -102,8 +102,9 @@ class GifConfig:
     gpu_binary: Optional[str] = None
     #: GPU backend only: write ``registered_atlases/<atlas>/warped_atlas_seg.nii.gz`` (as the CPU backend does)
     gpu_write_warped_seg: bool = True
-    #: GPU backend only: number of atlases that are registered together (lower it to save GPU memory)
-    gpu_batch: int = 20
+    #: GPU backend only: number of atlases that are registered together by the non-rigid registration (0 = automatic,
+    #: about 6 GB of GPU memory; lower it to save memory)
+    gpu_batch: int = 0
     #: GPU backend only: numerics of the non-rigid registration: 0 = exact emulation of NiftyReg's arithmetic,
     #: 1 = validated fast option (about 2x faster, same quality within noise; see native/README.md)
     gpu_numerics: int = 0
@@ -126,8 +127,8 @@ class GifConfig:
             raise ValueError(f"backend must be one of {', '.join(BACKENDS)}, got {self.backend!r}")
         if self.gpu_numerics not in (0, 1):
             raise ValueError(f"gpu_numerics must be 0 or 1, got {self.gpu_numerics}")
-        if self.gpu_batch < 1:
-            raise ValueError(f"gpu_batch must be >= 1, got {self.gpu_batch}")
+        if self.gpu_batch < 0:
+            raise ValueError(f"gpu_batch must be >= 0 (0 = automatic), got {self.gpu_batch}")
         if self.resample_method not in (0, 1):
             raise ValueError(f"resample_method must be 0 or 1, got {self.resample_method}")
 

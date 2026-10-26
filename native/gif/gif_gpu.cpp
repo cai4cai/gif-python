@@ -57,7 +57,7 @@ struct Cfg {
     float em_bias_thresh = 0.05f, em_mrf_beta = 0.1f;
     // execution
     int numerics = 0;
-    int f3d_batch = 20;
+    int f3d_batch = 0;
     int write_warped_seg = 1;
     int gz_level = 1;
     int gz_threads = 16;
@@ -83,7 +83,7 @@ void usage()
         "  --temperature X        weights = exp(-lncc distance / X) (0.15)\n"
         "  --em-maxit N --em-minit N --em-bias-order N --em-bias-thresh X --em-mrf-beta X   seg_EM (30 3 4 0.05 0.1)\n"
         "  --numerics 0|1         F3D numerics: 0 exact (default), 1 validated fast option\n"
-        "  --f3d-batch N          atlases registered together by F3D (20); lower it to save GPU memory\n"
+        "  --f3d-batch N          atlases registered together by F3D (0: automatic from the image size, about 6 GB of GPU memory)\n"
         "  --write-warped-seg 0|1 write registered_atlases/NAME/warped_atlas_seg.nii.gz (1)\n"
         "  --cpp-dir DIR          test mode: skip the registration and use DIR/NAME/cpp.nii.gz (control point grids of a CPU run)\n"
         "  --affine-dir DIR       test mode: use DIR/NAME/affine.txt (reg_aladin result of a CPU run) instead of the GPU reg_aladin\n"
@@ -384,7 +384,13 @@ int main(int argc, char **argv)
         P.levelNumber = cfg.f3d_ln; P.levelToPerform = cfg.f3d_lp;
         P.maxIterations = cfg.f3d_maxit; P.lnccSigmaMM = cfg.f3d_lncc; P.spacingVox = cfg.f3d_sx;
         P.numerics = cfg.numerics;
-        const int chunk = std::max(1, std::min(cfg.f3d_batch, A));
+        int chunk = cfg.f3d_batch;
+        if (chunk <= 0) {
+            // about 60 floats per voxel of the finest performed level and per atlas (measured); budget 6 GB
+            double nlevel = (double)N / std::pow(8.0, (double)(cfg.f3d_ln - cfg.f3d_lp));
+            chunk = (int)std::floor(6e9 / (60.0 * 4.0 * nlevel));
+        }
+        chunk = std::max(1, std::min(chunk, A));
         F3DBatch batch(d_target, rg, nullptr, P, chunk, st);
         grid = batch.finalGrid();
         for (int a = 0; a < A; a++) d_cpp[a] = dalloc<float>(3 * grid.nnodes());
