@@ -1,0 +1,5 @@
+build/
+build_nofma/
+ref_f3d
+ref_f3d_dbg
+*.o
