@@ -13,6 +13,7 @@ COMMANDS = {
     "segment": "src.cli.segment",
     "clean-labels": "src.cli.clean_labels",
     "make-structure-info": "src.cli.make_structure_info",
+    "fetch-mindboggle": "src.cli.fetch_mindboggle",
 }
 
 

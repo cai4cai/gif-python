@@ -7,8 +7,11 @@ Files for atlases built from the Mindboggle-101 volumes (`labels.DKT31.manual+as
 | `structures_info.csv` | one row per label: `label,name,tissues`; the tissues are the tissue classes the structure may belong to |
 | `tissues_info.csv` | the six tissue classes (0 non-brain outer tissue, 1 CSF, 2 grey matter, 3 white matter, 4 deep grey matter, 5 brain stem and pons) |
 | `itksnap_label_descriptions_mindboggle101.txt` | ITK-SNAP label description file (`File > Import > Label Descriptions`) |
+| `checksums.sha256` | SHA-256 of the five Harvard Dataverse volume archives and of the cleaned labels of all 101 subjects (see its header for exactly what is hashed) |
 
-They are installed with the package (`from src.resources import mindboggle101_file`).
+`gif-python fetch-mindboggle` copies the two csv files and the label description file into the atlas
+folder; they can also be used directly from the installed package
+(`from src.resources import mindboggle101_file`).
 
 ## Provenance and choices
 
@@ -27,6 +30,9 @@ They are installed with the package (`from src.resources import mindboggle101_fi
 * All labels of the volumes are listed, including the sparse ones that `clean-labels` removes and
   the problematic 72, 77 and 80. A label that is in the table but not in a given set of atlases only
   produces an informational message, so the same table works with the original and the cleaned labels.
+* The checksums were computed from complete downloads of the archives on 2026-10-26 (their MD5 sums equal those
+  published by Dataverse). The cleaned-label checksums were produced by `clean-labels` with the default labels.
+  Labels present in the 101 volumes are exactly the 114 labels of `structures_info.csv`.
 * The ITK-SNAP file is the one posted in the same issue (its colours are kept); the four labels it
   lacked (1001, 1032, 1033, 2001) were added with otherwise unused colours. It lists exactly the labels
   of `structures_info.csv`, with the same names.
