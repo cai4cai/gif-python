@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- GPU backend: `GifConfig.backend` (`"cpu"` default, `"gpu"`), `gif-python segment --backend {cpu,gpu}` and the CUDA program
+  `gif_gpu` (`native/`, CMake): affine and non-linear registration, resampling, LNCC weights, label fusion, tissue prior,
+  `seg_EM` and the final parcellation on the GPU, with the same inputs and output files. Clean-room, BSD-3-Clause
+  (`native/PROVENANCE.md`); masks are not supported; the CPU code path is unchanged. See `native/README.md`.
 - `pyproject.toml` (PEP 621) with all dependencies, `dev` and `viz` extras and the console script `gif-python`.
   The distribution name (`pygif`) and the import path (`src`) are unchanged.
 - `gif-python` command with `segment`, `clean-labels`, `make-structure-info` and `fetch-mindboggle`.

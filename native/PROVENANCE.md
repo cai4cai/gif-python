@@ -76,3 +76,37 @@ holders have not been decided by the seeding step** and must be filled in by the
 5. The code in this branch was written by an earlier working process that also read the GIF sources.  Only code whose behaviour is
    specified by NiftyReg / NiftySeg was kept and its comments were scrubbed, but a legal review of the remaining kernels may still
    want to compare them against the NiftyReg / NiftySeg sources (the A files are ports of those sources by design).
+
+---
+
+# Files added in the gif-python repository (branch `gpu-backend`)
+
+The files above are the seed (categories A/B as explained at the top).  The following files were written for gif-python by a second,
+clean-room implementer, who read only gif-python's own Python code and tests, the BSD-3 NiftyReg / NiftySeg sources and documentation,
+the seed above, general documentation (NIfTI-1 header specification, CUDA, numpy / scipy documentation) and image data.  The GIF
+(KCL-BMEIS/gif) sources were not read.  The behaviour of the new files is that of gif-python's Python pipeline.
+
+| File(s) | Cat. | Written from | Notes |
+|---|---|---|---|
+| `CMakeLists.txt` | B | - | Build of `gif_gpu` from the seed libraries (compile flags as in the seed Makefiles). |
+| `gif/gif_io.h`, `gif/gif_io.cpp` | B | NIfTI-1 header specification (public domain); nibabel's rule "sform if sform_code > 0, else qform" | Minimal reader / header builder.  The quaternion <-> matrix conversions follow the formulas of the NIfTI-1 specification. |
+| `gif/gif_stages.h`, `gif/gif_stages.cu`: `Resampler` | A | NiftyReg `reg_resampleImage` / `ResampleImage3D`, `interpLinearKernel`, `interpNearestNeighKernel`, `reg_round`, `reg_mat44_mul` (BSD-3, `reg-lib/cpu/_reg_resampling.cpp`) and the `reg_resample` application (default padding 0, data type of the floating image); gif-python `atlas_registration_and_resampling.py` | Uses the seed's `warp()` for the B-spline deformation field. |
+| `gif/gif_stages.cu`: `LnccWeights` | B | gif-python `src/multi_atlas/utils.py` (`get_lncc_distance`, `gaussian_smooth_with_mask`) and `atlas_registration_and_resampling.py` (weights); documented behaviour of `scipy.ndimage.gaussian_filter` (kernel `exp(-0.5 x^2 / sigma^2)` normalised by its sum, mode `reflect`, one float32 output per axis) | See "Doubts" below for the summation order. |
+| `gif/gif_stages.cu`: `Fusion` | B | gif-python `src/multi_atlas/multi_atlas_fusion.py` and `multi_atlas_segmentation.py` (probabilities, argmax, tissue prior, tissue segmentation, final parcellation) | The label probabilities are kept sparse (at most one entry per atlas and voxel). |
+| `gif/gif_stages.cu`: `labels_from_float`, `label_presence` | B | gif-python (`get_fdata(dtype=np.float16).astype(np.uint16)`, label checks) | |
+| `gif/gif_gpu.cpp` | B | gif-python `multi_atlas_segmentation.py`, `GifConfig` defaults; NiftySeg `seg-apps/seg_EM.cpp` (defaults of the application, mask = all voxels when no mask is given, output = posterior of every class) | Orchestration, command line, timing, output files. |
+| `README.md` | B | - | |
+| `../src/multi_atlas/gpu_backend.py`, `../tests/test_gpu_backend.py`, `../tests/test_gpu_stages.py`, `../scripts/gpu_validation/*` | B | gif-python | Python glue, tests and validation scripts. |
+
+## Doubts about provenance (for the reviewers)
+
+1. The seed itself was produced by a process that had also read GIF sources (note 5 above); this implementer relied on the seed as
+   delivered and did not compare it with anything outside the allowed sources.
+2. The summation order of scipy's `correlate1d` (centre tap first, then the pairs of taps from the outside inwards, in double
+   precision) and numpy's pairwise summation (used for the kernel normalisation and for `np.sum` over the tissue axis) were
+   reproduced from memory of their documented / observed behaviour, not from their sources.  They were checked numerically against
+   scipy / numpy (`tests/test_gpu_stages.py`: weights agree to 6e-5 relative, 54% of the voxels bit-identical).
+3. Class order: gif-python numbers the labels in the iteration order of a Python `set`; the GPU backend uses ascending label order.
+   This only matters for exact ties in `np.argmax`.  For the final parcellation, labels of zero probability are tried in class order,
+   whereas numpy's `argpartition` returns some other index among tied values.  Both are documented in `README.md`.
+4. No GIF code or GIF-derived material was seen by this implementer.

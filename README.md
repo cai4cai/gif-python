@@ -80,6 +80,14 @@ file are shipped with the package and copied to the atlas folder. Details, the l
 
 The former top-level scripts (`run_registration_parcellation_basic.py`, `clean_small_labels.py`, ...) still work and forward to these commands.
 
+## GPU backend (optional)
+
+`gif-python segment --backend gpu` (or `GifConfig(backend="gpu")`) runs the whole pipeline - registration, fusion and the
+tissue EM - on a CUDA GPU in a few seconds instead of minutes, with the same inputs and output files. It needs the `gif_gpu`
+program built from [`native/`](native/README.md) (CMake, CUDA toolkit); the default backend is still `cpu`. The results are
+statistically equivalent to the CPU backend, not bit-identical (the registration is chaotic); masks are not supported.
+See [native/README.md](native/README.md) for the build, the limits and the validation against the CPU backend.
+
 ## Steps performed by the algorithm
 1. Register all atlas images to the image to be segmented (target image) and resample the atlas images into
 the target image space. The registration is performed using the [NiftyReg](https://github.com/KCL-BMEIS/niftyreg) library. First, an affine
